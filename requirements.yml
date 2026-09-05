@@ -1,0 +1,19 @@
+---
+# grav-sites-ops — dependances Ansible
+#
+# Ce fichier est l'UNIQUE source de verite de la version de
+# `ansible-role-grav-site` consommee par grav-sites-ops (GSO-REQ-153).
+#
+# La reference DOIT rester epinglee sur un tag explicite. Une branche
+# flottante, `main`, `HEAD` ou une reference vide sont interdits en
+# exploitation (GSO-REQ-014, GSO-REQ-103).
+#
+# Installation :
+#   ansible-galaxy role install -r requirements.yml -p roles
+# ou :
+#   make install-role
+
+roles:
+  - name: sepp67.grav_site
+    src: git+https://github.com/sepp67/ansible-role-grav-site.git
+    version: "v2.0.0"

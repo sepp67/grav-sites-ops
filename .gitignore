@@ -1,0 +1,43 @@
+# grav-sites-ops — fichiers ignores
+#
+# Couvre au minimum les categories sensibles prevues par le contrat
+# architectural v0.5.0, section 17.7 (GSO-REQ-132), et la portabilite du
+# depot (GSO-REQ-099).
+
+# --- Vault operationnel et fichiers temporaires de vault ---
+inventories/production/group_vars/all/vault.yml
+**/vault.yml
+!**/vault.yml.example
+*.vault
+vault-*.yml
+.vault_pass
+.vault-password
+*.vault_pass
+
+# --- Role et collections installes localement ---
+/roles/
+/collections/
+
+# --- Caches Ansible / Molecule ---
+*.retry
+.ansible/
+.ansible-lint-cache/
+.molecule/
+__pycache__/
+*.pyc
+
+# --- Sorties de diagnostic pouvant contenir des donnees d'environnement ---
+*.log
+last-failure*.log
+deployed_versions.log
+.deployed_state.yml
+.deployed_version
+diagnostic-*.txt
+drift-report-*.json
+
+# --- Divers editeurs / OS ---
+.DS_Store
+*.swp
+*~
+.idea/
+.vscode/
