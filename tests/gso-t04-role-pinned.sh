@@ -72,7 +72,7 @@ fi
 # seule une seconde declaration de src/version constitue une violation
 # (GSO-REQ-153). On cherche donc l'URL de src et un pin de version explicite.
 role_src_matches="$(git grep -lIE 'ansible-role-grav-site\.(git|tar|zip)|ansible-role-grav-site/(archive|releases)|grav_site.*version:[[:space:]]*.?v?[0-9]' -- \
-  ':!requirements.yml' ':!tests/gso-t04-role-pinned.sh' || true)"
+  ':!requirements.yml' ':!tests/gso-t04-role-pinned.sh' ':!docs/' || true)"
 if [ -n "$role_src_matches" ]; then
   fail "declaration de source/version du role hors requirements.yml :"
   printf '%s\n' "$role_src_matches" | sed 's/^/      | /'

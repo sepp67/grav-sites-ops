@@ -1,9 +1,20 @@
 # Architecture de `grav-sites-ops`
 
 Ce document résume l'architecture normée par le **contrat architectural
-`v0.5.0`** (statut : normatif, approuvé le 2026-09-05), conservé hors dépôt
-dans `creation-grav-sites-ops/contrat-architectural-grav-sites-ops.md`. En cas
-de divergence, le contrat fait foi.
+`v0.5.0`** (statut : normatif, approuvé le 2026-09-05), dont une copie exacte
+est conservée dans [`CONTRAT-ARCHITECTURAL.md`](CONTRAT-ARCHITECTURAL.md)
+(GSO-REQ-198).
+
+### Ordre de préséance
+
+1. `docs/CONTRAT-ARCHITECTURAL.md` — source normative ; fait foi en cas de
+   divergence.
+2. Le présent document et les autres fichiers `docs/` — résumés et guides
+   d'application, non normatifs.
+3. Le code (playbooks, scripts, tests, CI) — mise en œuvre.
+
+Un résumé qui contredirait le contrat est un défaut du résumé, jamais une
+évolution de la règle.
 
 ## Responsabilité unique
 

@@ -3,8 +3,25 @@
 ## Le contrat fait foi
 
 Toute implémentation de `grav-sites-ops` est conforme uniquement si elle
-satisfait les exigences `GSO-REQ-*` du contrat architectural `v0.5.0`
-(`creation-grav-sites-ops/contrat-architectural-grav-sites-ops.md`, section 23).
+satisfait les exigences `GSO-REQ-*` du contrat architectural, dont la version
+en vigueur (`v0.5.0`) est conservée dans
+[`CONTRAT-ARCHITECTURAL.md`](CONTRAT-ARCHITECTURAL.md).
+
+## Conservation des versions du contrat (GSO-REQ-198)
+
+Chaque version approuvée du contrat DOIT être identifiable et conservée dans
+l'historique du dépôt :
+
+- `docs/CONTRAT-ARCHITECTURAL.md` contient **toujours** la dernière version
+  approuvée, à l'octet près (aucune reformulation, aucun retrait de section).
+- Le commit d'intégration référence la version, son statut et le condensé
+  SHA-256 de la source approuvée ; l'égalité des condensés source / copie est
+  vérifiée avant le commit.
+- Les versions antérieures restent accessibles via l'historique Git de ce
+  fichier (`git log --follow -- docs/CONTRAT-ARCHITECTURAL.md`). Une version
+  n'est jamais écrasée sans qu'un commit distinct ne trace la transition.
+- Une nouvelle version n'est intégrée qu'après approbation humaine explicite
+  (gate distinct, GSO-REQ-199).
 
 ## Gates séparés
 

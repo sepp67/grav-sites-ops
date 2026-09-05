@@ -15,9 +15,17 @@ d'une instance Grav : ce mécanisme appartient exclusivement au rôle.
 
 Le dépôt est un squelette **non opérationnel par défaut** : il ne contient ni
 inventaire de production, ni vault, ni playbook. Aucune commande de déploiement
-n'existe encore. La feuille de route de construction est décrite dans le
-préflight `08-preflight-construction.md` et le contrat architectural `v0.5.0`
-(hors dépôt, `creation-grav-sites-ops/contrat-architectural-grav-sites-ops.md`).
+n'existe encore.
+
+## Source normative
+
+La référence normative de ce dépôt est le **contrat architectural `v0.5.0`**
+(statut : normatif, approuvé le 2026-09-05), dont une copie exacte est
+conservée dans [`docs/CONTRAT-ARCHITECTURAL.md`](docs/CONTRAT-ARCHITECTURAL.md).
+Voir [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) pour l'ordre de préséance et
+[`docs/GOVERNANCE.md`](docs/GOVERNANCE.md) pour la gouvernance. La feuille de
+route de construction est décrite hors dépôt dans le préflight
+`08-preflight-construction.md`.
 
 ## Prérequis
 

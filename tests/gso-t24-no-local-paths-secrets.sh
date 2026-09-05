@@ -27,17 +27,21 @@ else
   done <<< "$symlinks"
 fi
 
-# --- 2. Aucun chemin absolu de workstation dans les fichiers suivis ---
+# --- 2. Aucun chemin absolu de workstation dans les fichiers d'execution ---
 # Motifs assembles a l'execution pour que ce script ne se matche pas lui-meme.
+# docs/ est exclu : la documentation normative cite ces motifs comme exemples
+# de ce qui est interdit (contrat, section 14.6). Le controle porte sur les
+# fichiers qui participent a l'execution et a la configuration.
 h="$(printf '%s' '/ho')$(printf '%s' 'me/')"
 u="$(printf '%s' '/Us')$(printf '%s' 'ers/')"
 r="$(printf '%s' '/ro')$(printf '%s' 'ot/')"
-path_hits="$(git grep -lI -e "$h" -e "$u" -e "$r" -- . ':!tests/gso-t24-no-local-paths-secrets.sh' || true)"
+path_hits="$(git grep -lI -e "$h" -e "$u" -e "$r" -- . \
+  ':!tests/gso-t24-no-local-paths-secrets.sh' ':!docs/' || true)"
 if [ -n "$path_hits" ]; then
   fail "chemin absolu de workstation dans des fichiers suivis :"
   printf '%s\n' "$path_hits" | sed 's/^/      | /'
 else
-  pass "aucun chemin absolu de workstation dans les fichiers suivis"
+  pass "aucun chemin absolu de workstation hors documentation"
 fi
 
 # --- 3. Aucun vault ni fichier de secret suivi ---

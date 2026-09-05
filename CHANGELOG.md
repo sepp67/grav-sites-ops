@@ -26,6 +26,9 @@ et le versionnement sémantique.
   `docs/GOVERNANCE.md`.
 - Squelette de répertoires (`inventories/example`, `playbooks`, `registry`,
   `scripts`) — non peuplés.
+- `docs/CONTRAT-ARCHITECTURAL.md` : copie exacte (à l'octet près) du contrat
+  architectural `v0.5.0` approuvé, conservée dans l'historique (GSO-REQ-198) ;
+  ordre de préséance établi dans `docs/ARCHITECTURE.md`.
 
 Le dépôt reste **non opérationnel par défaut** : aucun inventaire de
 production, aucun vault, aucun playbook.
