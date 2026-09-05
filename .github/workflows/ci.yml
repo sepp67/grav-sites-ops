@@ -1,0 +1,51 @@
+---
+name: ci
+
+# Lot L0 : la CI ne fait que du contrôle statique et l'installation de la
+# dépendance de rôle. Elle n'ouvre aucun vault, ne contacte aucune VM et
+# fonctionne sans `inventories/production/` (GSO-REQ-030, GSO-REQ-046,
+# GSO-REQ-058, GSO-REQ-139). Les jobs sont bloquants.
+
+"on":
+  push:
+    branches: ["**"]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  static:
+    name: Lint et garde-fous statiques
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Installer les outils
+        run: pip install "ansible-core>=2.17" ansible-lint yamllint
+      - name: GSO-T01 — syntaxe YAML / Ansible / inventaires
+        run: bash tests/gso-t01-syntax.sh
+      - name: GSO-T02 — ansible-lint
+        run: bash tests/gso-t02-ansible-lint.sh
+      - name: GSO-T04 — référence du rôle épinglée
+        run: bash tests/gso-t04-role-pinned.sh
+      - name: GSO-T23 — aucune dépendance au control-repository
+        run: bash tests/gso-t23-no-control-repository.sh
+      - name: GSO-T24 — aucun chemin local ni secret suivi
+        run: bash tests/gso-t24-no-local-paths-secrets.sh
+
+  role:
+    name: Installation de la dépendance de rôle
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Installer ansible-core
+        run: pip install "ansible-core>=2.17"
+      - name: GSO-T03 — installation depuis requirements.yml
+        run: bash tests/gso-t03-role-install.sh
