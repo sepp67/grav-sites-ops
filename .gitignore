@@ -5,14 +5,25 @@
 # depot (GSO-REQ-099).
 
 # --- Vault operationnel et fichiers temporaires de vault ---
+# Aucun fichier de vault reel ne doit pouvoir etre suivi, sous aucune forme
+# (GSO-REQ-023, GSO-REQ-042, GSO-REQ-069, GSO-REQ-098).
 inventories/production/group_vars/all/vault.yml
 **/vault.yml
-!**/vault.yml.example
-*.vault
-vault-*.yml
+**/vault.yaml
+**/vault_*.yml
+**/vault-*.yml
+**/*.vault
+**/vault.yml.example
 .vault_pass
 .vault-password
 *.vault_pass
+*.vault-tmp
+*.vault~
+
+# Exception unique et etroite : le MODELE d'exemple, non chiffre, sans secret
+# reel, non charge automatiquement par Ansible (extension .example). Ne couvre
+# QUE ce chemin exact — un vault reel place ailleurs reste ignore.
+!inventories/example/group_vars/all/vault.yml.example
 
 # --- Role et collections installes localement ---
 /roles/

@@ -1,0 +1,52 @@
+---
+# MODÈLE de vault — lot L2. NON OPÉRATIONNEL.
+#
+# - Extension `.example` : ce fichier n'est PAS chargé automatiquement par
+#   Ansible (contrairement à un vrai `vault.yml`). Il sert de gabarit et de
+#   support aux tests de cohérence (GSO-T07).
+# - Il n'est PAS chiffré et ne contient AUCUN secret réel. Toutes les valeurs
+#   sont manifestement fictives et non réutilisables (GSO-REQ-023, GSO-REQ-042).
+# - Le vault opérationnel réel est `inventories/production/group_vars/all/vault.yml`,
+#   chiffré avec Ansible Vault, jamais suivi par Git (GSO-REQ-022, GSO-REQ-069),
+#   fourni hors dépôt. Son mot de passe n'est jamais stocké dans le dépôt.
+#
+# Schéma : docs/VAULT-SCHEMA.md. Deux dictionnaires racines.
+#
+# `vault_grav_sites` : une entrée par hôte actif, clé = nom d'hôte
+# d'inventaire, exactement les mêmes clés que `grav_servers` et que
+# `grav_sites` (GSO-REQ-061, GSO-REQ-013). Chaque entrée porte le bootstrap
+# administrateur (tri-state user/password/email — GSO-REQ-062) et,
+# optionnellement, une liste `secrets` traduite telle quelle vers
+# `grav_secrets` du rôle, uniquement sous la forme `name` + `content`
+# (GSO-REQ-203).
+
+vault_grav_sites:
+
+  grav-example-alpha:
+    admin_user: alpha-bootstrap-admin
+    admin_password: EXAMPLE-NOT-A-REAL-SECRET-alpha-pw
+    admin_email: admin@alpha.example.invalid
+    admin_fullname: Alpha Example Administrator
+    admin_title: Administrator
+    admin_language: fr
+    admin_type: both
+    secrets:
+      - name: email-private.php
+        content: |
+          <?php
+          // SYNTHETIC EXAMPLE — pas un secret réel.
+          return ['mailer' => ['smtp' => ['from' => 'noreply@alpha.example.invalid']]];
+
+  grav-example-beta:
+    admin_user: beta-bootstrap-admin
+    admin_password: EXAMPLE-NOT-A-REAL-SECRET-beta-pw
+    admin_email: admin@beta.example.invalid
+    admin_fullname: Beta Example Administrator
+    admin_title: Administrator
+    admin_language: en
+    admin_type: admin
+    # `secrets` est optionnel : beta ne déclare aucun secret applicatif.
+
+# Registre des secrets de projets retirés. Vide tant qu'aucun projet n'est
+# retiré ; peuplé lors d'un retrait (lot L8, schéma en docs/VAULT-SCHEMA.md).
+vault_retired_grav_sites: {}
