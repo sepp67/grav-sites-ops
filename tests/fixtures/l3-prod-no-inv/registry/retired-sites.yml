@@ -1,0 +1,5 @@
+---
+# FIXTURE de test L3 — arborescence SANS inventaire de production.
+# `inventories/production/hosts.yml` est volontairement absent : toute
+# sélection doit être refusée « inventaire imposé absent » (GSO-T08).
+retired_grav_sites: {}

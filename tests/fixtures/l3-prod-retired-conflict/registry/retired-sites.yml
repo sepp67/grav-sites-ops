@@ -1,0 +1,20 @@
+---
+# INCOHÉRENT à dessein : grav-beta est aussi actif dans l'inventaire.
+retired_grav_sites:
+  grav-beta:
+    project_name: fixture-beta
+    retired_at: "2026-08-15"
+    former_inventory_host: grav-beta
+    former_ansible_host: 192.0.2.22
+    former_base_directory: /opt/fixture-beta
+    container_name: fixture-beta
+    last_deployment:
+      image: registry.example.invalid/fixture/grav-beta
+      version: "1.2.0"
+      digest: ""
+    preservation:
+      vm_status: stopped
+      vm_preserved: true
+      persistent_data_preserved: true
+      secrets_archived_in_vault: true
+    reason: Conflit de fixture (grav-beta encore actif)

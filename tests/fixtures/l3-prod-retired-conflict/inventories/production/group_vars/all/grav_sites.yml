@@ -1,0 +1,22 @@
+---
+grav_sites:
+  grav-alpha:
+    project_name: fixture-alpha
+    image: registry.example.invalid/fixture/grav-alpha
+    version: "1.0.0"
+    digest: ""
+    container_name: fixture-alpha
+    base_directory: /opt/fixture-alpha
+    bind_address: 192.0.2.21
+    http_port: 8080
+    state: started
+  grav-beta:
+    project_name: fixture-beta
+    image: registry.example.invalid/fixture/grav-beta
+    version: "1.2.0"
+    digest: ""
+    container_name: fixture-beta
+    base_directory: /opt/fixture-beta
+    bind_address: 192.0.2.22
+    http_port: 8081
+    state: started

@@ -1,0 +1,22 @@
+---
+# FIXTURE de test L3 — registre des projets retirés (synthétique).
+# `grav-gamma` a été retiré : il n'est ni dans l'inventaire actif ni dans
+# grav_sites. Toute sélection de `grav-gamma` doit être refusée.
+retired_grav_sites:
+  grav-gamma:
+    project_name: fixture-gamma
+    retired_at: "2026-08-01"
+    former_inventory_host: grav-gamma
+    former_ansible_host: 192.0.2.29
+    former_base_directory: /opt/fixture-gamma
+    container_name: fixture-gamma
+    last_deployment:
+      image: registry.example.invalid/fixture/grav-gamma
+      version: "0.9.0"
+      digest: ""
+    preservation:
+      vm_status: stopped
+      vm_preserved: true
+      persistent_data_preserved: true
+      secrets_archived_in_vault: true
+    reason: Projet mis de côté (fixture)
