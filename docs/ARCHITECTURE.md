@@ -69,9 +69,17 @@ est déclarée uniquement dans `requirements.yml`.
 
 ## Structure du dépôt
 
-Voir `README.md`. Les répertoires `playbooks/`, `registry/`, `scripts/`
-apparaissent progressivement, lot par lot, selon le préflight de construction.
+Voir `README.md`. Les répertoires `playbooks/` et `registry/` apparaissent
+progressivement, lot par lot, selon le préflight de construction.
 `inventories/production/` est fourni hors dépôt et n'est jamais suivi par Git.
+
+## Sélection de cible et préflight
+
+Toute opération part du **sélecteur fermé** (`scripts/validate-target.sh`) puis
+du **préflight opérateur** (`scripts/preflight.sh`), tous deux en lecture seule
+et adossés à une **implémentation unique** des règles de validation
+(`scripts/lib/gso_validate.py`, partagée avec les tests). Détails :
+[`OPERATIONS.md`](OPERATIONS.md).
 
 ## Modèle de données
 

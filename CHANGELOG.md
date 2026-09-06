@@ -11,6 +11,28 @@ et le versionnement sémantique.
 
 ## [Non publié]
 
+### Ajouté — lot L3 (sélecteur fermé + préflight lecture seule)
+
+- `scripts/lib/gso_validate.py` : **implémentation unique** des règles de
+  validation (registre, vault, sélecteur, préflight) — remplace
+  `tests/lib/registry_lint.py` et `tests/lib/vault_lint.py` (logique promue,
+  non dupliquée).
+- `scripts/validate-target.sh` : sélecteur fermé — `SITE` ↦ `^[a-z][a-z0-9-]*$`,
+  inventaire fixé à `inventories/production/hosts.yml` (non remplaçable), un
+  seul hôte actif, cohérence registre/vault, refus des cibles retirées et
+  globales (GSO-REQ-053, 056, 057, 083-086, 093-095, 107, 138).
+- `scripts/preflight.sh` : préflight opérateur read-only, échoue fermé.
+- Cibles `make validate SITE=` / `make preflight SITE=`.
+- `docs/OPERATIONS.md`.
+- `tests/gso-t08` … `tests/gso-t12` + 4 fixtures synthétiques de production
+  isolées (`tests/fixtures/l3-*`).
+- `GSO-T06`/`GSO-T07` repointés sur le validateur partagé (sens inchangé).
+- CI étendue à `GSO-T08`–`GSO-T12`.
+
+Aucun playbook, aucun appel au rôle, aucun vault opérationnel, aucun
+`inventories/production/` réel, aucune connexion : le dépôt reste non
+opérationnel.
+
 ### Ajouté — lot L2 (modèle de vault)
 
 - `inventories/example/group_vars/all/vault.yml.example` : modèle de vault en
