@@ -1,10 +1,11 @@
 ---
 name: ci
 
-# Lot L0 : la CI ne fait que du contrôle statique et l'installation de la
-# dépendance de rôle. Elle n'ouvre aucun vault, ne contacte aucune VM et
-# fonctionne sans `inventories/production/` (GSO-REQ-030, GSO-REQ-046,
-# GSO-REQ-058, GSO-REQ-139). Les jobs sont bloquants.
+# La CI n'ouvre jamais le vault réel, ne contacte aucune VM et fonctionne
+# sans `inventories/production/` (GSO-REQ-030, GSO-REQ-046, GSO-REQ-058,
+# GSO-REQ-139). GSO-T15 crée un conteneur grav-runtime ÉPHÉMÈRE sur le
+# runner, ciblant uniquement localhost, avec des données synthétiques, puis
+# le détruit. Jobs bloquants.
 
 "on":
   push:
@@ -65,3 +66,41 @@ jobs:
         run: pip install "ansible-core>=2.17"
       - name: GSO-T03 — installation depuis requirements.yml
         run: bash tests/gso-t03-role-install.sh
+
+  translate:
+    name: Traduction et isolation (doublure, sans conteneur)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Installer les outils + dépendances Ansible
+        run: |
+          pip install "ansible-core>=2.17"
+          ansible-galaxy install -r requirements.yml
+      - name: GSO-T13 — traduction registre + grav_secrets → grav_*
+        run: bash tests/gso-t13-translate.sh
+      - name: GSO-T14 — isolation des secrets et cohérence (GSO-REQ-204)
+        run: bash tests/gso-t14-secret-isolation.sh
+      - name: GSO-T16 — deux sites, isolation sans conteneur
+        run: bash tests/gso-t16-two-sites-isolation.sh
+      - name: L4 — verrou de concurrence
+        run: bash tests/l4-concurrency-lock.sh
+
+  deploy-functional:
+    name: GSO-T15 — déploiement fonctionnel (conteneur éphémère)
+    runs-on: ubuntu-latest    # les runners GitHub fournissent Docker
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Installer les outils + dépendances Ansible
+        run: |
+          pip install "ansible-core>=2.17"
+          ansible-galaxy install -r requirements.yml
+      - name: Pré-tirer l'image de test (référence épinglée par digest)
+        run: docker pull ghcr.io/sepp67/grav-runtime:1.0.4
+      - name: GSO-T15 — déploiement réel d'un site + conteneur éphémère
+        run: bash tests/gso-t15-real-deploy.sh
