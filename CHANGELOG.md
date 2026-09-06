@@ -11,6 +11,28 @@ et le versionnement sémantique.
 
 ## [Non publié]
 
+### Ajouté — lot L2 (modèle de vault)
+
+- `inventories/example/group_vars/all/vault.yml.example` : modèle de vault en
+  clair, entièrement synthétique — `vault_grav_sites` (2 entrées : bootstrap
+  admin tri-state + `secrets` `name`/`content` pour alpha), `vault_retired_grav_sites: {}`.
+- `.gitignore` : garde Git renforcée du vault ; ré-inclusion **unique et
+  nommée** de `inventories/example/group_vars/all/vault.yml.example`
+  (GSO-REQ-098).
+- `docs/VAULT-SCHEMA.md` : schéma normatif du vault (bootstrap administrateur,
+  `grav_secrets` `name` + `content`, forme `src` interdite, garde Git,
+  disjonction actif/retiré).
+- `tests/lib/vault_lint.py` : validateur statique du vault d'exemple, sans
+  affichage de valeur.
+- `tests/gso-t07-vault-example.sh` : GSO-T07 (correspondance, schéma admin,
+  `grav_secrets`, rejet de `src`, non-fuite) + 4 cas négatifs générés.
+- `GSO-T24` étendu : garde Git étroite du vault, confinement des marqueurs
+  synthétiques.
+- Cible `make lint-vault` ; `make test-static` et CI étendus à `GSO-T07`.
+
+Toujours aucun vault opérationnel, aucun secret réel, aucun sélecteur, aucun
+playbook, aucune capacité de déploiement.
+
 ### Ajouté — lot L1 (couche de données déclaratives)
 
 - `inventories/example/hosts.yml` : deux hôtes fictifs dans `grav_servers`,
