@@ -163,4 +163,22 @@ else
   pass "cas négatif « secret-dans-registre » rejeté ($(grep -c '^FAIL' "$d/out") écart(s))"
 fi
 
+# Cas négatif : racine de vault surnuméraire + clé active aussi retirée ---
+d="$tmp/racine-et-disjonction"; mkdir -p "$d/gv"
+cp "$INV" "$d/hosts.yml"; cp "$REG" "$d/gv/grav_sites.yml"
+{
+  printf 'vault_grav_sites:\n'
+  printf '  grav-example-alpha: {admin_user: u, admin_password: p, admin_email: e@x.invalid}\n'
+  printf '  grav-example-beta: {admin_user: u, admin_password: p, admin_email: e@x.invalid}\n'
+  printf 'vault_retired_grav_sites:\n'
+  printf '  grav-example-alpha: {admin_user: u, admin_password: p, admin_email: e@x.invalid}\n'
+  printf 'stray_root: {}\n'
+} > "$d/gv/vault.yml.example"
+if python3 "$DIR/lib/vault_lint.py" --inventory "$d/hosts.yml" \
+    --registry "$d/gv/grav_sites.yml" --vault "$d/gv/vault.yml.example" > "$d/out" 2>&1; then
+  fail "cas négatif « racine-et-disjonction » accepté à tort"
+else
+  pass "cas négatif « racine-et-disjonction » rejeté ($(grep -c '^FAIL' "$d/out") écart(s))"
+fi
+
 finish
