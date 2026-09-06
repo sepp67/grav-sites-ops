@@ -66,11 +66,14 @@ else
   fail "commande externe inattendue : ${other_exec:-<ansible-inventory --list absent>}"
 fi
 
-# --- 4. Aucun playbook n'existe qui pourrait être invoqué ---
-if [ -z "$(git ls-files 'playbooks/*.yml')" ]; then
-  pass "playbooks/ ne contient aucun playbook (rien à invoquer)"
+# --- 4. Le chemin L3 (sélecteur + préflight) n'invoque aucun playbook ---
+# (deploy-site.yml existe à partir de L4 mais n'est appelé que par
+#  scripts/deploy.sh, APRÈS le sélecteur et le verrou.)
+if code_only "$REPO_ROOT/scripts/validate-target.sh" | grep -qE 'ansible-playbook|deploy-site' \
+   || code_only "$REPO_ROOT/scripts/preflight.sh" | grep -qE 'ansible-playbook|deploy-site'; then
+  fail "le sélecteur ou le préflight invoque un playbook"
 else
-  fail "des playbooks existent : $(git ls-files 'playbooks/*.yml')"
+  pass "sélecteur et préflight n'invoquent aucun playbook (lecture seule)"
 fi
 
 # --- 5. Refus rapide, sans tentative de contact, sur cible inconnue ---

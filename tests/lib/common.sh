@@ -31,6 +31,23 @@ l3_tmptree() {
   fi
 }
 
+# l4_tmptree <nom-fixture> <destdir> : comme l3_tmptree + scripts/deploy.sh,
+# les playbooks et ansible.cfg. L'appelant ajoute ensuite
+# <destdir>/inventories/production/group_vars/all/vault.yml (synthétique) et
+# <destdir>/roles/sepp67.grav_site (doublure ou vrai rôle).
+l4_tmptree() {
+  local fixture="$1" dest="$2"
+  l3_tmptree "$fixture" "$dest"
+  cp -r "$REPO_ROOT/playbooks" "$dest/playbooks"
+  cp "$REPO_ROOT/ansible.cfg" "$dest/ansible.cfg"
+  mkdir -p "$dest/roles" "$dest/collections"
+}
+
+# gso_spy_role_into <destdir> : installe la DOUBLURE sepp67.grav_site.
+gso_spy_role_into() {
+  cp -r "$REPO_ROOT/tests/lib/spy-role/sepp67.grav_site" "$1/roles/sepp67.grav_site"
+}
+
 FAILURES=0
 
 pass() { printf 'PASS  %s\n' "$*"; }

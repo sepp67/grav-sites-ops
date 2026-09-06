@@ -25,14 +25,23 @@ else
 fi
 
 # --- 2. Playbooks : verification de syntaxe Ansible ---
-mapfile -t playbooks < <(tracked_files 'playbooks/*.yml' || true)
+# Uniquement les playbooks de premier niveau ; les fichiers de tâches de
+# playbooks/_shared/ sont couverts par le yamllint ci-dessus.
+mapfile -t playbooks < <(tracked_files 'playbooks/*.yml' | grep -v '/_shared/' || true)
 if [ "${#playbooks[@]}" -eq 0 ]; then
-  skip "aucun playbook a ce stade (attendu au lot L1)"
+  skip "aucun playbook a ce stade (attendu au lot L4)"
 else
+  role_ok=0
+  [ -d "$REPO_ROOT/roles/sepp67.grav_site" ] && role_ok=1
   for pb in "${playbooks[@]}"; do
-    if ansible-playbook --syntax-check "$pb" >/dev/null 2>&1; then
+    if [ "$role_ok" -eq 0 ] && grep -q 'sepp67.grav_site' "$pb"; then
+      skip "$pb : rôle sepp67.grav_site absent — 'make install-role' pour le syntax-check complet"
+      continue
+    fi
+    if ansible-playbook --syntax-check -i inventories/example/hosts.yml "$pb" >/dev/null 2>&1; then
       pass "ansible-playbook --syntax-check $pb"
     else
+      ansible-playbook --syntax-check -i inventories/example/hosts.yml "$pb" 2>&1 | grep -vi deprecat | tail -3 | sed 's/^/      | /'
       fail "syntaxe invalide : $pb"
     fi
   done

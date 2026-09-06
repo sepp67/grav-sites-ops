@@ -1,0 +1,23 @@
+---
+# DOUBLURE de test — remplace `sepp67.grav_site` pour observer, SANS rien
+# déployer, les variables `grav_*` réellement transmises par la traduction du
+# playbook (GSO-T13, GSO-T14, GSO-T16). Ne contacte aucune machine, ne crée
+# aucun conteneur. Les chemins de sortie viennent de l'environnement.
+
+- name: "SPY — enregistrer les variables grav_* transmises au rôle"
+  ansible.builtin.copy:
+    dest: "{{ lookup('ansible.builtin.env', 'GSO_SPY_OUTPUT') }}/{{ inventory_hostname }}.json"
+    content: |
+      {{ hostvars[inventory_hostname] | dict2items
+         | selectattr('key', 'match', '^grav_')
+         | items2dict | to_nice_json }}
+    mode: "0600"
+  delegate_to: localhost
+
+- name: "SPY — journaliser l'invocation (compte des appels)"
+  ansible.builtin.lineinfile:
+    path: "{{ lookup('ansible.builtin.env', 'GSO_SPY_OUTPUT') }}/_calls.log"
+    line: "{{ inventory_hostname }}"
+    create: true
+    mode: "0600"
+  delegate_to: localhost
