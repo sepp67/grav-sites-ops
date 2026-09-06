@@ -10,12 +10,15 @@ fichier (GSO-REQ-026, 095, 107, 130). Échoue fermé : tout écart → code ≠ 
 Sous-commandes :
     registry  --inventory <hosts.yml> [--context example|production]
     vault     --inventory <hosts.yml> [--vault <f>] [--registry <f>]
-    selector  <SITE> [--root <dir>] [--action deploy|restart|stop|check]
-    preflight <SITE> [--root <dir>] [--action ...]   (selector + registry + vault)
+    selector  <SITE>              (aucune autre option)
+    preflight <SITE>              (selector + registre + vault)
 
-`--root` (sélecteur/préflight) : racine d'arborescence, RÉSERVÉE AUX TESTS.
-Par défaut, la racine est le dépôt et l'inventaire est **fixé** à
-`inventories/production/hosts.yml` — jamais remplaçable par une option.
+`selector` / `preflight` n'acceptent **que** `SITE`. La racine du dépôt et
+l'inventaire (`inventories/production/hosts.yml`) sont déterminés
+exclusivement depuis l'emplacement de ce fichier (`repo_root()`) — jamais
+depuis le répertoire courant, une option ou une variable d'environnement
+(GSO-REQ-053). L'injection d'une racine synthétique n'existe que via
+`run_selector` / `run_preflight`, appelées uniquement par le code de test.
 """
 
 from __future__ import annotations
@@ -62,6 +65,22 @@ SECRET_NAME_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]*$")
 SITE_RE = re.compile(r"^[a-z][a-z0-9-]*$")
 GLOBAL_TOKENS = {"all", "*", "grav_servers", "ungrouped", "localhost", "none"}
 FIXED_INVENTORY = os.path.join("inventories", "production", "hosts.yml")
+
+# Liste fermée des actions opérateur normatives (contrat §13.1). NON exposée
+# sur l'interface actuelle : le sélecteur L3 est agnostique de l'action. La
+# validation d'une action fournie par l'opérateur contre cette liste sera
+# ajoutée avec les playbooks (lot L4).
+NORMATIVE_ACTIONS = ("deploy", "restart", "stop", "check")
+
+
+def repo_root() -> str:
+    """Racine du dépôt, déterminée EXCLUSIVEMENT depuis l'emplacement canonique
+    de ce fichier (`<racine>/scripts/lib/gso_validate.py`).
+
+    Indépendante : du répertoire courant, d'une option de ligne de commande,
+    d'une variable d'environnement. `realpath` résout les liens symboliques.
+    """
+    return os.path.dirname(os.path.dirname(os.path.dirname(os.path.realpath(__file__))))
 
 
 # --------------------------------------------------------------------------- #
@@ -348,7 +367,7 @@ def validate_vault(inv_path: str, vault_path: str | None, registry_path: str | N
 # --------------------------------------------------------------------------- #
 # Sélecteur fermé
 # --------------------------------------------------------------------------- #
-def validate_selector(site: str | None, root: str, action: str, r: Reporter) -> str | None:
+def validate_selector(site: str | None, root: str, r: Reporter) -> str | None:
     # 1. SITE obligatoire (GSO-REQ-083)
     if not r.check(bool(site) and site.strip() != "", "SITE fourni et non vide",
                    "SITE absent ou vide (GSO-REQ-083)"):
@@ -453,11 +472,12 @@ def main(argv: list[str] | None = None) -> int:
     p.add_argument("--vault")
     p.add_argument("--registry")
 
+    # `selector` / `preflight` : SEUL argument accepté = SITE. Aucune option
+    # ne peut substituer la racine du dépôt ni l'inventaire imposé
+    # (GSO-REQ-053). La racine est celle de ce fichier (repo_root()).
     for name in ("selector", "preflight"):
         p = sub.add_parser(name)
         p.add_argument("site", nargs="?")
-        p.add_argument("--root", default=".")
-        p.add_argument("--action", choices=["deploy", "restart", "stop", "check"], default="deploy")
 
     args = ap.parse_args(argv)
     r = Reporter()
@@ -469,17 +489,36 @@ def main(argv: list[str] | None = None) -> int:
         validate_vault(args.inventory, args.vault, args.registry, r)
         return _finish(r, "vault")
 
-    resolved = validate_selector(args.site, args.root, args.action, r)
-    if args.cmd == "preflight" and resolved and not r.errors:
-        inv_path = os.path.join(args.root, FIXED_INVENTORY)
+    return _run_target_cmd(args.cmd, args.site, repo_root(), r)
+
+
+def _run_target_cmd(cmd: str, site: str | None, root: str, r: Reporter) -> int:
+    """Exécute `selector` ou `preflight` pour une racine donnée.
+
+    `root` est fourni par le CLI (toujours `repo_root()`) ou, DIRECTEMENT et
+    UNIQUEMENT par le code de test, par `run_selector` / `run_preflight`.
+    """
+    resolved = validate_selector(site, root, r)
+    if cmd == "preflight" and resolved and not r.errors:
+        inv_path = os.path.join(root, FIXED_INVENTORY)
         validate_registry(inv_path, "production", r)
         vpath = os.path.join(gv_dir(inv_path), "vault.yml.example")
         if os.path.isfile(vpath):
             validate_vault(inv_path, vpath, None, r)
-    rc = _finish(r, args.cmd)
+    rc = _finish(r, cmd)
     if rc == 0 and resolved:
         print(f"TARGET {resolved}")
     return rc
+
+
+def run_selector(site: str | None, *, root: str) -> int:
+    """Point d'entrée RÉSERVÉ AUX TESTS : injecte une racine synthétique."""
+    return _run_target_cmd("selector", site, root, Reporter())
+
+
+def run_preflight(site: str | None, *, root: str) -> int:
+    """Point d'entrée RÉSERVÉ AUX TESTS : injecte une racine synthétique."""
+    return _run_target_cmd("preflight", site, root, Reporter())
 
 
 if __name__ == "__main__":

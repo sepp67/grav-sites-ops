@@ -11,6 +11,26 @@ export REPO_ROOT
 GSO_VALIDATE="$REPO_ROOT/scripts/lib/gso_validate.py"
 export GSO_VALIDATE
 
+# Harnais de test du sélecteur : injecte une racine synthétique par appel
+# direct des fonctions internes (jamais exposé à l'opérateur).
+GSO_SELECT_HARNESS="$REPO_ROOT/tests/lib/selector_harness.py"
+export GSO_SELECT_HARNESS
+
+# l3_tmptree <nom-fixture> <destdir> : recopie les scripts réels + l'arbre
+# de production de la fixture dans <destdir>, qui devient un mini-dépôt dont
+# les wrappers résolvent <destdir> comme racine canonique.
+l3_tmptree() {
+  local fixture="$1" dest="$2"
+  mkdir -p "$dest"
+  cp -r "$REPO_ROOT/scripts" "$dest/scripts"
+  if [ -d "$REPO_ROOT/tests/fixtures/$fixture/inventories" ]; then
+    cp -r "$REPO_ROOT/tests/fixtures/$fixture/inventories" "$dest/inventories"
+  fi
+  if [ -d "$REPO_ROOT/tests/fixtures/$fixture/registry" ]; then
+    cp -r "$REPO_ROOT/tests/fixtures/$fixture/registry" "$dest/registry"
+  fi
+}
+
 FAILURES=0
 
 pass() { printf 'PASS  %s\n' "$*"; }

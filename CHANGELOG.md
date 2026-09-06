@@ -29,6 +29,14 @@ et le versionnement sémantique.
 - `GSO-T06`/`GSO-T07` repointés sur le validateur partagé (sens inchangé).
 - CI étendue à `GSO-T08`–`GSO-T12`.
 
+Correctif de clôture L3 : `--root` et `--action` **retirés** de l'interface
+opérateur. La racine du dépôt et l'inventaire sont déterminés uniquement
+depuis l'emplacement canonique de `gso_validate.py` (`realpath`), jamais
+depuis le cwd, une option ou une variable d'environnement. L'injection d'une
+racine synthétique n'existe plus que via `run_selector` / `run_preflight`
+(fonctions internes appelées par le seul code de test). La liste fermée
+`NORMATIVE_ACTIONS` est conservée pour L4.
+
 Aucun playbook, aucun appel au rôle, aucun vault opérationnel, aucun
 `inventories/production/` réel, aucune connexion : le dépôt reste non
 opérationnel.

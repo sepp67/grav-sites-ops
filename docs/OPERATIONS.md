@@ -34,9 +34,13 @@ Règles (toutes vérifiées avant toute opération, échec = code ≠ 0) :
    `$`, backtick, `;`, `|`, `_` … (GSO-REQ-084, GSO-REQ-138).
 3. `SITE` n'est jamais une cible globale : `all`, `*`, un nom de groupe
    (`grav_servers`, `ungrouped`), `localhost` sont refusés (GSO-REQ-138 ; §14.1).
-4. L'inventaire est **fixé** par le dépôt à `inventories/production/hosts.yml`.
-   Aucune option (`-i`, `--inventory`, `--limit`) n'est acceptée par le
-   sélecteur ; l'inventaire ne peut pas être remplacé (GSO-REQ-053).
+4. La racine du dépôt et l'inventaire (`inventories/production/hosts.yml`) sont
+   déterminés **exclusivement** depuis l'emplacement canonique du script
+   (`scripts/lib/gso_validate.py`, via `realpath`). Ils ne dépendent **ni** du
+   répertoire courant, **ni** d'une option (`-i`, `--inventory`, `--limit`,
+   `--root` — toutes rejetées), **ni** d'une variable d'environnement. Le seul
+   argument accepté par `validate-target.sh` / `preflight.sh` est `SITE`
+   (GSO-REQ-053).
 5. `SITE` résout **exactement un** hôte du groupe `grav_servers`
    (GSO-REQ-017, GSO-REQ-057). Un hôte absent → échec (GSO-REQ-086,
    GSO-REQ-056), jamais un « succès vide ».
@@ -72,6 +76,19 @@ Le préflight est **strictement en lecture seule** : il ne déploie rien,
 n'ouvre aucun vault chiffré, ne contacte aucune machine, ne modifie aucun
 fichier. Il **échoue fermé** : toute ambiguïté ou incohérence → code ≠ 0,
 avant toute opération mutante (GSO-REQ-026, 038, 094, 095, 107).
+
+## Action (lot L4)
+
+Le sélecteur L3 est **agnostique de l'action** : il valide une identité de
+cible, pas ce qu'on va en faire. La liste **fermée** des actions opérateur
+normatives est `deploy`, `restart`, `stop`, `check` (contrat §13.1 ; constante
+`NORMATIVE_ACTIONS` dans `scripts/lib/gso_validate.py`). À partir du lot L4,
+toute action fournie par l'opérateur sera validée contre cette liste fermée
+avant toute mutation ; aucune option d'action n'est exposée avant.
+
+Un site à l'état désiré `stopped` reste un **projet actif** du registre : il
+est une cible d'identité légitime. Ce que chaque action autorise ou interdit
+sur un site `stopped` sera défini par les playbooks du lot L4.
 
 ## Concurrence
 

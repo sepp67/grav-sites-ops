@@ -8,15 +8,13 @@ DIR="$(cd "$(dirname "$0")" && pwd)"
 . "$DIR/lib/common.sh"
 
 cd "$REPO_ROOT"
-S="$REPO_ROOT/scripts/validate-target.sh"
+H="python3 $GSO_SELECT_HARNESS selector"     # harnais : racine synthétique injectée
 ROOT="$DIR/fixtures/l3-prod-ok"
 
-refused=0
 try_refuse() {
   local label="$1" site="$2"
-  if bash "$S" "$site" --root "$ROOT" >/dev/null 2>&1; then
+  if $H "$site" "$ROOT" >/dev/null 2>&1; then
     fail "ACCEPTÉ à tort : $label"
-    refused=1
   else
     pass "refusé : $label"
   fi
@@ -41,8 +39,7 @@ try_refuse "pipe"                    "grav-alpha|true"
 try_refuse "majuscule"               "Grav-Alpha"
 try_refuse "underscore"              "grav_alpha"
 
-# --- Contrôle positif : un littéral valide passe ---
-if bash "$S" grav-alpha --root "$ROOT" >/dev/null 2>&1; then
+if $H grav-alpha "$ROOT" >/dev/null 2>&1; then
   pass "contrôle positif : littéral valide 'grav-alpha' accepté"
 else
   fail "contrôle positif en échec : 'grav-alpha' aurait dû être accepté"
