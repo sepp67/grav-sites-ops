@@ -12,6 +12,7 @@ Usage : selector_harness.py {selector|preflight} <SITE|""> <root>
 import os
 import sys
 
+sys.dont_write_bytecode = True  # pas de __pycache__ dans scripts/lib/
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.realpath(__file__)), "..", "..", "scripts", "lib"))
 import gso_validate  # noqa: E402
 

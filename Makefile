@@ -72,3 +72,4 @@ test-role: ## Verifie l'installation du role (acces reseau requis)
 clean: ## Supprime les artefacts locaux non suivis (roles, caches)
 	rm -rf $(ROLES_PATH) collections .ansible .ansible-lint-cache
 	find . -name '*.retry' -delete
+	find . -type d -name '__pycache__' -exec rm -rf {} +
