@@ -1,13 +1,16 @@
 # grav-sites-ops — points d'entree
 #
-# Lot L0 (harnais). Ce Makefile ne contient que les operations reellement
-# disponibles et testees a ce stade : installation de la dependance et
-# execution des tests. Les cibles d'exploitation (deploy, restart, stop,
-# check) seront ajoutees par les lots ulterieurs, avec un inventaire
-# fourni explicitement via -i (GSO-REQ-025, GSO-REQ-053).
+# Lots L0-L3. Ce Makefile expose l'installation de la dependance, les tests,
+# et les controles LOCAUX en lecture seule (validate / preflight). Les cibles
+# mutantes (deploy, restart, stop) seront ajoutees a partir du lot L4.
+#
+# SITE est transmis tel quel au selecteur, entre guillemets, sans
+# reinterpretation shell (GSO-REQ-084). L'inventaire est fixe par le depot
+# (GSO-REQ-053) : aucune option d'inventaire n'est acceptee.
 
 SHELL := /bin/bash
 ROLES_PATH := roles
+SITE ?=
 
 .DEFAULT_GOAL := help
 
@@ -37,16 +40,29 @@ test-static: ## Execute les tests statiques (hors acces reseau)
 	bash tests/gso-t05-example-inventory.sh
 	bash tests/gso-t06-registry-autoload.sh
 	bash tests/gso-t07-vault-example.sh
+	bash tests/gso-t08-selector-fixed-inventory.sh
+	bash tests/gso-t09-selector-requires-site.sh
+	bash tests/gso-t10-selector-refuses-global-and-multiple.sh
+	bash tests/gso-t11-selector-closed.sh
+	bash tests/gso-t12-selector-no-remote-contact.sh
 	bash tests/gso-t23-no-control-repository.sh
 	bash tests/gso-t24-no-local-paths-secrets.sh
 
+.PHONY: validate
+validate: ## Selecteur ferme : valide SITE contre l'inventaire impose (lecture seule)
+	bash scripts/validate-target.sh "$(SITE)"
+
+.PHONY: preflight
+preflight: ## Preflight operateur : selecteur + coherence registre/vault (lecture seule)
+	bash scripts/preflight.sh "$(SITE)"
+
 .PHONY: lint-registry
 lint-registry: ## Valide le registre d'exemple (validateur statique L1)
-	python3 tests/lib/registry_lint.py --inventory inventories/example/hosts.yml --context example
+	python3 scripts/lib/gso_validate.py registry --inventory inventories/example/hosts.yml --context example
 
 .PHONY: lint-vault
 lint-vault: ## Valide le modele de vault d'exemple (validateur statique L2)
-	python3 tests/lib/vault_lint.py --inventory inventories/example/hosts.yml
+	python3 scripts/lib/gso_validate.py vault --inventory inventories/example/hosts.yml
 
 .PHONY: test-role
 test-role: ## Verifie l'installation du role (acces reseau requis)
