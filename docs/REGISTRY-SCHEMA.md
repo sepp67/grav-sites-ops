@@ -15,7 +15,7 @@ le rôle (lot L4).
 |---|---|---|---|
 | Inventaire | `inventories/<env>/hosts.yml` | opérationnel, non secret | L1 |
 | Registre actif | `inventories/<env>/group_vars/all/grav_sites.yml` | opérationnel, non secret | L1 |
-| Vault global | `inventories/production/group_vars/all/vault.yml` | secret, chiffré, non suivi | L2 |
+| Vault global | `inventories/production/group_vars/all/vault.yml` (opérationnel) · `inventories/example/group_vars/all/vault.yml.example` (modèle) | secret, chiffré, non suivi / modèle synthétique en clair | L2 — voir [`VAULT-SCHEMA.md`](VAULT-SCHEMA.md) |
 | Registre retiré | `registry/retired-sites.yml`, `registry/reactivated-sites.yml` | historique, non secret | L8 |
 
 Le **nom d'hôte d'inventaire** est l'unique clé de jointure entre ces ensembles

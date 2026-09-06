@@ -73,10 +73,14 @@ Voir `README.md`. Les répertoires `playbooks/`, `registry/`, `scripts/`
 apparaissent progressivement, lot par lot, selon le préflight de construction.
 `inventories/production/` est fourni hors dépôt et n'est jamais suivi par Git.
 
-## Modèle de données déclaratives
+## Modèle de données
 
-La couche de données (inventaire, groupe `grav_servers`, registre `grav_sites`,
-contraintes d'unicité, chargement automatique) est décrite dans
-[`REGISTRY-SCHEMA.md`](REGISTRY-SCHEMA.md). Elle ne contient aucun secret : les
-identifiants et valeurs confidentielles vivent dans un vault séparé, introduit
-par un lot ultérieur.
+- **Registre non secret** (inventaire, groupe `grav_servers`, `grav_sites`,
+  unicité, chargement automatique) : [`REGISTRY-SCHEMA.md`](REGISTRY-SCHEMA.md).
+- **Vault** (bootstrap administrateur tri-state, `grav_secrets` sous la forme
+  `name` + `content`, garde Git, disjonction actif/retiré) :
+  [`VAULT-SCHEMA.md`](VAULT-SCHEMA.md).
+
+Le registre non secret ne contient jamais de secret ; le vault opérationnel
+(chiffré, fourni hors dépôt) n'est jamais suivi par Git ni lu par la CI. Seul un
+**modèle d'exemple en clair et synthétique** est versionné.

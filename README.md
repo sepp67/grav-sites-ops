@@ -11,11 +11,14 @@ d'une instance Grav : ce mécanisme appartient exclusivement au rôle.
 
 ## Statut
 
-**Construction en cours — lot L0 (harnais).**
+**Construction en cours — lots L0 (harnais), L1 (données déclaratives),
+L2 (modèle de vault).**
 
-Le dépôt est un squelette **non opérationnel par défaut** : il ne contient ni
-inventaire de production, ni vault, ni playbook. Aucune commande de déploiement
-n'existe encore.
+Le dépôt reste **non opérationnel par défaut** : ni inventaire de production, ni
+vault opérationnel, ni playbook, ni sélecteur de cible. Les seules données sont
+l'inventaire, le registre et le **modèle de vault** d'exemple
+(`inventories/example/…`), entièrement synthétiques. Aucune commande de
+déploiement n'existe encore.
 
 ## Source normative
 
@@ -47,6 +50,7 @@ Toutes les commandes ci-dessous sont couvertes par un test (`make test`).
 | `make test-static` | tests statiques uniquement (sans accès réseau) |
 | `make test-role` | vérifie l'installation du rôle (accès réseau requis) |
 | `make lint-registry` | valide le registre d'exemple (même validateur que `GSO-T06`) |
+| `make lint-vault` | valide le modèle de vault d'exemple (même validateur que `GSO-T07`) |
 | `make clean` | supprime les artefacts locaux non suivis |
 
 ## Structure
@@ -55,17 +59,18 @@ Toutes les commandes ci-dessous sont couvertes par un test (`make test`).
 ansible.cfg          aucun inventaire par défaut ; -i explicite obligatoire
 requirements.yml     unique source de vérité de la version du rôle (tag épinglé)
 Makefile             points d'entrée documentés
-inventories/example/ inventaire + registre grav_sites synthétiques (lot L1)
+inventories/example/ inventaire + registre grav_sites (L1) + vault.yml.example (L2)
 inventories/production/  fourni hors dépôt ; jamais suivi par Git
 playbooks/           opérations Ansible (ajoutées à partir du lot L4)
 registry/            historiques retired-sites / reactivated-sites (lot L8)
 scripts/             contrôles locaux, dont la validation de cible (lot L3)
 tests/               scripts GSO-T*, lanceur, validateurs (tests/lib/), fixtures
-docs/                architecture, contrat, schéma du registre, versionnement, gouvernance
+docs/                architecture, contrat, schémas registre/vault, versionnement, gouvernance
 .github/workflows/   CI (jobs statiques)
 ```
 
-Modèle de données déclaratives : voir [`docs/REGISTRY-SCHEMA.md`](docs/REGISTRY-SCHEMA.md).
+Modèle de données : [`docs/REGISTRY-SCHEMA.md`](docs/REGISTRY-SCHEMA.md) (registre non secret) ·
+[`docs/VAULT-SCHEMA.md`](docs/VAULT-SCHEMA.md) (vault : bootstrap admin, `grav_secrets`).
 
 ## Dépendances
 
