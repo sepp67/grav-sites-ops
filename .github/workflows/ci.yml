@@ -32,6 +32,10 @@ jobs:
         run: bash tests/gso-t02-ansible-lint.sh
       - name: GSO-T04 — référence du rôle épinglée
         run: bash tests/gso-t04-role-pinned.sh
+      - name: GSO-T05 — inventaire d'exemple parsable
+        run: bash tests/gso-t05-example-inventory.sh
+      - name: GSO-T06 — registre chargé automatiquement
+        run: bash tests/gso-t06-registry-autoload.sh
       - name: GSO-T23 — aucune dépendance au control-repository
         run: bash tests/gso-t23-no-control-repository.sh
       - name: GSO-T24 — aucun chemin local ni secret suivi
