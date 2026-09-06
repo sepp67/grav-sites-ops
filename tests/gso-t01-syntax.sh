@@ -12,8 +12,8 @@ DIR="$(cd "$(dirname "$0")" && pwd)"
 
 cd "$REPO_ROOT"
 
-# --- 1. yamllint sur tous les fichiers YAML suivis ---
-mapfile -t yaml_files < <(tracked_files '*.yml' '*.yaml' | grep -v -E '^(roles|collections)/' || true)
+# --- 1. yamllint sur tous les fichiers YAML suivis (y compris les modèles .example) ---
+mapfile -t yaml_files < <(tracked_files '*.yml' '*.yaml' '*.yml.example' '*.yaml.example' | grep -v -E '^(roles|collections)/' || true)
 if [ "${#yaml_files[@]}" -eq 0 ]; then
   fail "aucun fichier YAML suivi (le harnais L0 doit en contenir)"
 else
