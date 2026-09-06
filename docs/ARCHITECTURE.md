@@ -69,7 +69,14 @@ est déclarée uniquement dans `requirements.yml`.
 
 ## Structure du dépôt
 
-Voir `README.md`. Les répertoires `playbooks/`, `registry/`, `scripts/` et le
-contenu de `inventories/` apparaissent progressivement, lot par lot, selon le
-préflight de construction. `inventories/production/` est fourni hors dépôt et
-n'est jamais suivi par Git.
+Voir `README.md`. Les répertoires `playbooks/`, `registry/`, `scripts/`
+apparaissent progressivement, lot par lot, selon le préflight de construction.
+`inventories/production/` est fourni hors dépôt et n'est jamais suivi par Git.
+
+## Modèle de données déclaratives
+
+La couche de données (inventaire, groupe `grav_servers`, registre `grav_sites`,
+contraintes d'unicité, chargement automatique) est décrite dans
+[`REGISTRY-SCHEMA.md`](REGISTRY-SCHEMA.md). Elle ne contient aucun secret : les
+identifiants et valeurs confidentielles vivent dans un vault séparé, introduit
+par un lot ultérieur.

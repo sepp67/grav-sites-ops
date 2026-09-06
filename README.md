@@ -46,6 +46,7 @@ Toutes les commandes ci-dessous sont couvertes par un test (`make test`).
 | `make test` | exécute toute la batterie de tests disponible (`GSO-T*`) |
 | `make test-static` | tests statiques uniquement (sans accès réseau) |
 | `make test-role` | vérifie l'installation du rôle (accès réseau requis) |
+| `make lint-registry` | valide le registre d'exemple (même validateur que `GSO-T06`) |
 | `make clean` | supprime les artefacts locaux non suivis |
 
 ## Structure
@@ -54,14 +55,17 @@ Toutes les commandes ci-dessous sont couvertes par un test (`make test`).
 ansible.cfg          aucun inventaire par défaut ; -i explicite obligatoire
 requirements.yml     unique source de vérité de la version du rôle (tag épinglé)
 Makefile             points d'entrée documentés
-inventories/         example/ (fixtures de test) ; production/ fourni hors dépôt
+inventories/example/ inventaire + registre grav_sites synthétiques (lot L1)
+inventories/production/  fourni hors dépôt ; jamais suivi par Git
 playbooks/           opérations Ansible (ajoutées à partir du lot L4)
 registry/            historiques retired-sites / reactivated-sites (lot L8)
 scripts/             contrôles locaux, dont la validation de cible (lot L3)
-tests/               scripts GSO-T* et lanceur
-docs/                architecture, versionnement, gouvernance
+tests/               scripts GSO-T*, lanceur, validateurs (tests/lib/), fixtures
+docs/                architecture, contrat, schéma du registre, versionnement, gouvernance
 .github/workflows/   CI (jobs statiques)
 ```
+
+Modèle de données déclaratives : voir [`docs/REGISTRY-SCHEMA.md`](docs/REGISTRY-SCHEMA.md).
 
 ## Dépendances
 
