@@ -49,4 +49,15 @@ else
   fail "cible résolue inattendue : '$t'"
 fi
 
+# --- GSO-REQ-018 : aucune variable de sélection parallèle ---
+# Motif assemblé à l'exécution pour que ce script ne se matche pas lui-même.
+pat="grav_site""_target"
+hits="$(git grep -nI -e "$pat" -- ':!docs/' ':!tests/gso-t11-selector-closed.sh' || true)"
+if [ -n "$hits" ]; then
+  fail "variable de sélection parallèle présente :"
+  printf '%s\n' "$hits" | sed 's/^/      | /'
+else
+  pass "aucune variable de sélection parallèle (GSO-REQ-018)"
+fi
+
 finish

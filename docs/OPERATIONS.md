@@ -73,6 +73,13 @@ n'ouvre aucun vault chiffré, ne contacte aucune machine, ne modifie aucun
 fichier. Il **échoue fermé** : toute ambiguïté ou incohérence → code ≠ 0,
 avant toute opération mutante (GSO-REQ-026, 038, 094, 095, 107).
 
+## Concurrence
+
+`grav-sites-ops` n'a, à ce stade, aucune opération mutante. La règle « une
+seule mutation à la fois sur un même site » (GSO-REQ-096, contrat §14.3)
+s'appliquera aux playbooks introduits à partir du lot L4 ; le sélecteur et le
+préflight, en lecture seule, peuvent être exécutés sans restriction.
+
 ## Ce que le sélecteur / préflight ne font jamais
 
 - ouvrir ou déchiffrer un vault opérationnel ;
