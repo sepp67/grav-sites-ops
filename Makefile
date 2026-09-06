@@ -29,8 +29,16 @@ lint: ## yamllint + ansible-lint sur le depot
 	ansible-lint --nocolor --offline
 
 .PHONY: test
-test: ## Execute toute la batterie de tests disponible (GSO-T*)
+test: ## Gate locale COMPLETE : batterie reproductible + GSO-T15 (Docker+role+image requis — docs/TESTING.md)
+	bash tests/run-all.sh --functional
+
+.PHONY: test-reproducible
+test-reproducible: ## Sous-ensemble 100 % reproductible (identique a la CI ; sans GSO-T15)
 	bash tests/run-all.sh
+
+.PHONY: test-functional
+test-functional: ## GSO-T15 seul : deploiement fonctionnel + conteneur ephemere local
+	bash tests/gso-t15-real-deploy.sh
 
 .PHONY: test-static
 test-static: ## Execute les tests statiques (hors acces reseau)

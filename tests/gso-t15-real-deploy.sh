@@ -3,6 +3,12 @@
 # RÉEL et éphémère (préflight du lot L4, exception d'exécution autorisée
 # pour ce seul test).
 #
+# TEST D'ACCEPTATION LOCAL — non exécuté par la CI standard (aucune image
+# préchargée garantie, aucun identifiant GHCR). Lancé par `make test-functional`
+# ou `bash tests/run-all.sh --functional`. Préconditions et digest exact :
+# docs/TESTING.md. À exécuter OBLIGATOIREMENT avant toute autorisation de
+# release.
+#
 # Chemin opérateur complet : scripts/deploy.sh -> sélecteur fermé -> verrou
 # -> deploy-site.yml (assertions + préflight structurel + traduction) ->
 # invocation UNIQUE du VRAI rôle sepp67.grav_site v2.0.0 -> un conteneur
@@ -25,27 +31,19 @@ IMG_REF="ghcr.io/sepp67/grav-runtime"
 IMG_VERSION="1.0.4"      # défini par ansible-role-grav-site (molecule/deploy, molecule/multi_instance)
 IMG_DIGEST="sha256:d130f333c6566a26856c271656b21ce2d06793f9c4af24e620b53da14e4d640f"
 
-# --- 0. Préconditions (sinon : blocage explicite, pas de skip silencieux) ---
-if [ "${GSO_SKIP_DOCKER:-0}" = "1" ]; then
-  skip "GSO_SKIP_DOCKER=1 — GSO-T15 (conteneur réel) non exécuté"
-  finish
-fi
-if ! command -v docker >/dev/null || ! docker version >/dev/null 2>&1; then
-  fail "BLOCAGE : Docker indisponible — GSO-T15 exige un conteneur réel (voir autorisation L4)"
-  finish
-fi
-if ! docker image inspect "$IMG_REF:$IMG_VERSION" >/dev/null 2>&1; then
-  fail "BLOCAGE : image $IMG_REF:$IMG_VERSION absente localement — autorisation de pull requise (référence pinnée : $IMG_DIGEST)"
-  finish
-fi
-if [ ! -d "$REPO_ROOT/roles/sepp67.grav_site" ]; then
-  fail "BLOCAGE : rôle sepp67.grav_site non installé — 'make install-role'"
-  finish
-fi
-if [ ! -d "$REPO_ROOT/collections/ansible_collections/community/docker" ]; then
-  fail "BLOCAGE : collection community.docker absente — 'make install-role'"
-  finish
-fi
+# --- 0. Préconditions : blocage explicite (jamais un SKIP, jamais un succès) ---
+# GSO-T15 est un test d'acceptation LOCAL (docs/TESTING.md). Il n'est pas
+# exécuté par la CI standard. En l'absence d'une précondition, il ÉCHOUE.
+BLOCK=0
+command -v docker >/dev/null && docker version >/dev/null 2>&1 \
+  || { fail "BLOCAGE : Docker indisponible — GSO-T15 exige un conteneur réel"; BLOCK=1; }
+docker image inspect "$IMG_REF:$IMG_VERSION" >/dev/null 2>&1 \
+  || { fail "BLOCAGE : image $IMG_REF:$IMG_VERSION absente localement — la tirer manuellement par digest ($IMG_DIGEST) ; aucun pull automatique"; BLOCK=1; }
+[ -d "$REPO_ROOT/roles/sepp67.grav_site" ] \
+  || { fail "BLOCAGE : rôle sepp67.grav_site non installé — 'make install-role'"; BLOCK=1; }
+[ -d "$REPO_ROOT/collections/ansible_collections/community/docker" ] \
+  || { fail "BLOCAGE : collection community.docker absente — 'make install-role'"; BLOCK=1; }
+[ "$BLOCK" -eq 0 ] || finish
 
 SUF="$(printf '%x' "$(date +%s)")$$$RANDOM"
 SITE="gso-t15-$SUF"

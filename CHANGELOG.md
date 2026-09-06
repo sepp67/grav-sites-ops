@@ -33,6 +33,17 @@ et le versionnement sémantique.
 Traduction, verrou et une-seule-invocation prouvés sans donnée réelle
 (doublures) ; GSO-T15 seul crée un conteneur, localhost, éphémère, synthétique.
 
+**Correctif de clôture L4 — contrat d'exécution de GSO-T15.** `GSO-T15` est
+retiré de la CI standard : il exige une image `grav-runtime` déjà présente
+localement (aucun pull implicite, aucun identifiant GHCR — GSO-REQ-108) et
+devient un **test d'acceptation local** (`make test-functional`). La CI
+conserve `GSO-T13`/`T14`/`T16` + verrou (100 % reproductibles avec doublures)
+et ajoute `l4-ci-functional-contract` (garde-fou : pas de pull, pas de
+référence flottante, pas de secret de registre). `make test` reste la gate
+locale complète (avec `GSO-T15`) ; `make test-reproducible` = sous-ensemble
+CI. `GSO-T15` **échoue** (jamais un SKIP, jamais un succès) si une précondition
+manque. Contrat détaillé + digest exact : `docs/TESTING.md`.
+
 ### Ajouté — lot L3 (sélecteur fermé + préflight lecture seule)
 
 - `scripts/lib/gso_validate.py` : **implémentation unique** des règles de

@@ -49,7 +49,9 @@ Toutes les commandes ci-dessous sont couvertes par un test (`make test`).
 | `make help` | liste les cibles |
 | `make install-role` | installe `sepp67.grav_site` (tag épinglé) dans `./roles` |
 | `make lint` | `yamllint` + `ansible-lint` |
-| `make test` | exécute toute la batterie de tests disponible (`GSO-T*`) |
+| `make test` | gate locale **complète** : batterie reproductible **+ `GSO-T15`** (exige Docker + rôle + collection + image `grav-runtime` épinglée déjà présents — voir [`docs/TESTING.md`](docs/TESTING.md)) |
+| `make test-reproducible` | sous-ensemble 100 % reproductible (identique à la CI ; **sans `GSO-T15`**) |
+| `make test-functional` | `GSO-T15` seul : déploiement fonctionnel + conteneur éphémère local |
 | `make test-static` | tests statiques uniquement (sans accès réseau) |
 | `make test-role` | vérifie l'installation du rôle (accès réseau requis) |
 | `make validate SITE=<hôte>` | sélecteur fermé, lecture seule (voir `docs/OPERATIONS.md`) |
@@ -71,7 +73,7 @@ playbooks/           opérations Ansible (ajoutées à partir du lot L4)
 registry/            historiques retired-sites / reactivated-sites (lot L8)
 scripts/             sélecteur fermé + préflight (L3) ; lib/gso_validate.py = validateur partagé
 tests/               scripts GSO-T*, lanceur, helpers (tests/lib/), fixtures
-docs/                architecture, contrat, schémas registre/vault, exploitation, versionnement, gouvernance
+docs/                architecture, contrat, schémas registre/vault, exploitation, tests, versionnement, gouvernance
 .github/workflows/   CI (jobs statiques)
 ```
 

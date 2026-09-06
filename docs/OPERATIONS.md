@@ -20,21 +20,29 @@ Toutes les cibles n'acceptent que `SITE`.
 
 ## Le chemin de déploiement (lot L4)
 
-`make deploy SITE=<hôte>` → `scripts/deploy.sh` exécute **dans cet ordre** :
+`make deploy SITE=<hôte>` → `scripts/deploy.sh` exécute **strictement dans cet
+ordre** :
 
 ```
 SITE littéral
-  └─▶ 1. préflight local     scripts/validate-target.sh (sélecteur fermé L3)
-  └─▶ 2. verrou de concurrence   flock par site (GSO-REQ-096)
-  └─▶ 3. playbook deploy-site.yml
-          ├─ assertion : --limit == inventory_hostname, un seul hôte,
-          │              jamais all/groupe/multiple  (GSO-REQ-016/017/057/082/094)
-          ├─ préflight structurel : gso_validate.py preflight <hôte>
-          │              (registre + vault + bootstrap + secrets, no_log — GSO-REQ-204)
-          ├─ traduction : grav_sites[hôte] + vault_grav_sites[hôte] → grav_*
-          │              (exacte, aucune valeur globale, aucun repli)
+  └─▶ 1. préflight local / sélecteur    scripts/validate-target.sh (sélecteur fermé L3)
+  └─▶ 2. verrou de concurrence          flock par site (GSO-REQ-096)
+  └─▶ 3. ansible-playbook deploy-site.yml --limit <hôte> :
+          ├─ 3a. assertions du playbook       --limit == inventory_hostname,
+          │        un seul hôte, jamais all/groupe/multiple (GSO-REQ-016/017/057/082/094)
+          ├─ 3b. second préflight structurel  gso_validate.py preflight <hôte>
+          │        (registre + vault + bootstrap tri-state + secrets, no_log — GSO-REQ-204)
+          ├─ 3c. traduction                   grav_sites[hôte] + vault_grav_sites[hôte]
+          │        → grav_* (exacte, aucune valeur globale, aucun repli)
           └─▶ 4. include_role: sepp67.grav_site   — exactement une fois (GSO-REQ-087)
 ```
+
+Le **préflight local** (étape 1, `scripts/validate-target.sh`) et le **second
+préflight structurel** (étape 3b, tâche du playbook) sont deux contrôles
+distincts : le premier valide l'identité de la cible avant même le verrou ; le
+second revalide, à l'intérieur du play et juste avant la traduction, la
+cohérence structurelle des données de l'hôte sélectionné (GSO-REQ-085, préflight
+à deux niveaux).
 
 Règles impératives :
 

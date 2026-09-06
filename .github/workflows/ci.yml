@@ -1,11 +1,11 @@
 ---
 name: ci
 
-# La CI n'ouvre jamais le vault réel, ne contacte aucune VM et fonctionne
-# sans `inventories/production/` (GSO-REQ-030, GSO-REQ-046, GSO-REQ-058,
-# GSO-REQ-139). GSO-T15 crée un conteneur grav-runtime ÉPHÉMÈRE sur le
-# runner, ciblant uniquement localhost, avec des données synthétiques, puis
-# le détruit. Jobs bloquants.
+# La CI n'ouvre jamais le vault réel, ne contacte aucune VM, ne tire aucune
+# image et fonctionne sans `inventories/production/` (GSO-REQ-030, 046, 058,
+# 108, 139). Elle n'exécute QUE des tests entièrement reproductibles avec
+# des doublures. Le test fonctionnel GSO-T15 (conteneur réel) est un test
+# d'acceptation LOCAL — voir docs/TESTING.md. Jobs bloquants.
 
 "on":
   push:
@@ -68,7 +68,7 @@ jobs:
         run: bash tests/gso-t03-role-install.sh
 
   translate:
-    name: Traduction et isolation (doublure, sans conteneur)
+    name: Traduction, isolation et verrou (doublures — 100 % reproductible)
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -88,19 +88,14 @@ jobs:
       - name: L4 — verrou de concurrence
         run: bash tests/l4-concurrency-lock.sh
 
-  deploy-functional:
-    name: GSO-T15 — déploiement fonctionnel (conteneur éphémère)
-    runs-on: ubuntu-latest    # les runners GitHub fournissent Docker
+  # GSO-T15 (déploiement fonctionnel avec conteneur réel) n'est PAS exécuté ici :
+  # il exige une image grav-runtime déjà présente localement (aucun pull
+  # implicite, aucun identifiant GHCR — GSO-REQ-108). C'est un test
+  # d'acceptation LOCAL : `make test-functional` (voir docs/TESTING.md).
+  functional-contract:
+    name: Contrat d'exécution de GSO-T15 (garde-fou statique)
+    runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
-        with:
-          python-version: "3.12"
-      - name: Installer les outils + dépendances Ansible
-        run: |
-          pip install "ansible-core>=2.17"
-          ansible-galaxy install -r requirements.yml
-      - name: Pré-tirer l'image de test (référence épinglée par digest)
-        run: docker pull ghcr.io/sepp67/grav-runtime:1.0.4
-      - name: GSO-T15 — déploiement réel d'un site + conteneur éphémère
-        run: bash tests/gso-t15-real-deploy.sh
+      - name: L4 — le workflow ne tire ni ne référence GSO-T15
+        run: bash tests/l4-ci-functional-contract.sh
