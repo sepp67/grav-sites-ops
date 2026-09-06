@@ -1,0 +1,16 @@
+---
+# grav-sites-ops — configuration ansible-lint (utilisée par GSO-T02).
+
+profile: min
+
+exclude_paths:
+  - roles/
+  - collections/
+  - .ansible/
+  - tests/fixtures/
+  - tests/lib/spy-role/        # doublure de test, pas un vrai rôle Galaxy
+
+# Fichiers de tâches partagées des playbooks : classés `tasks`, jamais
+# `playbook` (ils ne contiennent pas de liste de plays).
+kinds:
+  - tasks: "playbooks/_shared/*.yml"
