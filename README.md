@@ -12,14 +12,16 @@ d'une instance Grav : ce mécanisme appartient exclusivement au rôle.
 ## Statut
 
 **Construction en cours — lots L0 (harnais), L1 (données déclaratives),
-L2 (modèle de vault), L3 (sélecteur fermé + préflight lecture seule).**
+L2 (modèle de vault), L3 (sélecteur fermé + préflight), L4 (déploiement d'un
+site).**
 
-Le dépôt reste **non opérationnel par défaut** : ni inventaire de production, ni
-vault opérationnel, ni playbook, ni capacité de déploiement. Les seules données
-sont l'inventaire, le registre et le **modèle de vault** d'exemple
-(`inventories/example/…`), entièrement synthétiques. Le sélecteur et le
-préflight (`make validate` / `make preflight`) sont **strictement en lecture
-seule** et échouent tant qu'aucun inventaire de production n'est fourni.
+Le dépôt reste **non opérationnel par défaut** : ni inventaire de production,
+ni vault opérationnel. Les seules données versionnées sont l'inventaire, le
+registre et le modèle de vault d'**exemple** (`inventories/example/…`),
+entièrement synthétiques. `make validate` / `make preflight` sont en lecture
+seule ; `make deploy SITE=<hôte>` exécute le chemin complet
+sélecteur → verrou → préflight → rôle, mais **échoue tant qu'aucun
+`inventories/production/hosts.yml` n'est fourni** (hors dépôt).
 
 ## Source normative
 
@@ -52,6 +54,7 @@ Toutes les commandes ci-dessous sont couvertes par un test (`make test`).
 | `make test-role` | vérifie l'installation du rôle (accès réseau requis) |
 | `make validate SITE=<hôte>` | sélecteur fermé, lecture seule (voir `docs/OPERATIONS.md`) |
 | `make preflight SITE=<hôte>` | préflight opérateur, lecture seule |
+| `make deploy SITE=<hôte>` | déploie / actualise l'instance d'un site (sélecteur → verrou → rôle) |
 | `make lint-registry` | valide le registre d'exemple (même validateur que `GSO-T06`) |
 | `make lint-vault` | valide le modèle de vault d'exemple (même validateur que `GSO-T07`) |
 | `make clean` | supprime les artefacts locaux non suivis |

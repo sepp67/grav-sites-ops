@@ -3,22 +3,61 @@
 Résumé normatif : contrat architectural `v0.5.0`, sections 8.5, 13 et 14
 (`docs/CONTRAT-ARCHITECTURAL.md`). En cas de divergence, le contrat fait foi.
 
-Ce document est livré par le **lot L3**. Il décrit le **sélecteur fermé** et le
-**préflight opérateur en lecture seule**. Il **n'aborde pas** les opérations
-mutantes (`deploy`, `restart`, `stop`), introduites à partir du lot L4.
+Livré par les **lots L3** (sélecteur fermé, préflight lecture seule) et **L4**
+(déploiement d'un site). Les opérations `restart` / `stop` seront ajoutées au
+lot L5, `check` / `check-all` au lot L6.
 
-## Interface opérateur (à ce stade)
+## Interface opérateur
 
 | Commande | Effet | Mutation |
 |---|---|---|
 | `make validate SITE=<hôte>` | sélecteur fermé : valide que `SITE` désigne un hôte actif unique | aucune |
 | `make preflight SITE=<hôte>` | sélecteur + cohérence inventaire ↔ registre ↔ vault | aucune |
-| `scripts/validate-target.sh <hôte>` | idem `make validate` | aucune |
-| `scripts/preflight.sh <hôte>` | idem `make preflight` | aucune |
+| `make deploy SITE=<hôte>` | **déploie / actualise** l'instance de `<hôte>` selon le registre | oui (via le rôle) |
+| `scripts/validate-target.sh <hôte>` / `scripts/preflight.sh <hôte>` / `scripts/deploy.sh <hôte>` | idem, sans `make` | — |
 
-Les cibles `deploy` / `restart` / `stop` / `check` (contrat §13.1) seront
-ajoutées par les lots suivants. Elles commenceront **toujours** par le
-sélecteur ci-dessous.
+Toutes les cibles n'acceptent que `SITE`.
+
+## Le chemin de déploiement (lot L4)
+
+`make deploy SITE=<hôte>` → `scripts/deploy.sh` exécute **dans cet ordre** :
+
+```
+SITE littéral
+  └─▶ 1. préflight local     scripts/validate-target.sh (sélecteur fermé L3)
+  └─▶ 2. verrou de concurrence   flock par site (GSO-REQ-096)
+  └─▶ 3. playbook deploy-site.yml
+          ├─ assertion : --limit == inventory_hostname, un seul hôte,
+          │              jamais all/groupe/multiple  (GSO-REQ-016/017/057/082/094)
+          ├─ préflight structurel : gso_validate.py preflight <hôte>
+          │              (registre + vault + bootstrap + secrets, no_log — GSO-REQ-204)
+          ├─ traduction : grav_sites[hôte] + vault_grav_sites[hôte] → grav_*
+          │              (exacte, aucune valeur globale, aucun repli)
+          └─▶ 4. include_role: sepp67.grav_site   — exactement une fois (GSO-REQ-087)
+```
+
+Règles impératives :
+
+- **aucune** invocation du rôle avant réussite du préflight local **et** des
+  assertions du playbook (`any_errors_fatal`) ;
+- `--limit` vaut **exactement** le littéral `SITE` validé ; une valeur globale,
+  multiple, vide ou différente de l'hôte courant fait échouer le playbook avant
+  toute mutation ;
+- accès au registre **uniquement** par `grav_sites[inventory_hostname]`, aux
+  secrets **uniquement** par `vault_grav_sites[inventory_hostname]` — aucun
+  `grav_site_target`, aucun repli ;
+- `grav_secrets` transmis **tel quel** (`name` + `content`), **jamais** `src` ;
+- bootstrap administrateur **tri-state** (0 ou 3 identifiants) ;
+- `no_log` sur toute tâche manipulant une valeur secrète ; aucune valeur secrète
+  dans les logs, erreurs, commandes ou rapports (GSO-REQ-024/092/101) ;
+- verrou acquis avant toute mutation, **libéré de façon fiable** (le noyau
+  ferme le descripteur `flock` en succès, échec ou interruption) ; une tentative
+  concurrente échoue proprement (code 75) **sans** lancer le rôle ;
+- aucune fonctionnalité de rotation d'identifiants n'est déclarée ni simulée
+  (GSO-REQ-071).
+
+L'inventaire de production reste **fourni hors dépôt** : `make deploy` échoue
+tant qu'`inventories/production/hosts.yml` n'existe pas.
 
 ## Le sélecteur fermé
 

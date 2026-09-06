@@ -11,6 +11,28 @@ et le versionnement sémantique.
 
 ## [Non publié]
 
+### Ajouté — lot L4 (déploiement d'un site)
+
+- `playbooks/deploy-site.yml` + `playbooks/_shared/translate.yml` : assertion
+  `--limit` == hôte courant → préflight structurel (`gso_validate.py preflight`,
+  `no_log`, GSO-REQ-204) → traduction exacte registre/vault → **une seule**
+  invocation de `sepp67.grav_site` (GSO-REQ-015/018/061/087/092).
+- `scripts/deploy.sh` : sélecteur fermé → **verrou `flock` par site**
+  (GSO-REQ-096) → playbook. `make deploy SITE=`.
+- `requirements.yml` : ajout de `community.docker` (dépendance de rôle,
+  bornée `>=5.0.0,<6.0.0`) ; `make install-role` installe rôle + collection.
+- Tests : `GSO-T13` (traduction + second contrôle de cible), `GSO-T14`
+  (isolation des secrets, non-fuite, GSO-REQ-204), `GSO-T15` (**déploiement
+  réel** d'un site + conteneur `grav-runtime` éphémère sur localhost, contrôle
+  fonctionnel, destruction contrôlée), `GSO-T16` (deux sites, isolation sans
+  double conteneur), `tests/l4-concurrency-lock.sh` (verrou).
+- Doublure de rôle `tests/lib/spy-role/` + harnais `l4_tmptree`.
+- `.ansible-lint` ; `ansible.cfg` : `unparsed_is_failed` retiré.
+- CI : jobs `translate` (doublure) et `deploy-functional` (conteneur éphémère).
+
+Traduction, verrou et une-seule-invocation prouvés sans donnée réelle
+(doublures) ; GSO-T15 seul crée un conteneur, localhost, éphémère, synthétique.
+
 ### Ajouté — lot L3 (sélecteur fermé + préflight lecture seule)
 
 - `scripts/lib/gso_validate.py` : **implémentation unique** des règles de
