@@ -11,6 +11,25 @@ et le versionnement sémantique.
 
 ## [Non publié]
 
+### Ajouté — lot L1 (couche de données déclaratives)
+
+- `inventories/example/hosts.yml` : deux hôtes fictifs dans `grav_servers`,
+  adresses TEST-NET-1.
+- `inventories/example/group_vars/all/grav_sites.yml` : registre `grav_sites`
+  synthétique (2 entrées), chargé automatiquement par Ansible.
+- `docs/REGISTRY-SCHEMA.md` : schéma normatif du registre (champs obligatoires
+  et optionnels, unicité, sémantique de `state`, environnements).
+- `tests/lib/registry_lint.py` : validateur statique de cohérence
+  inventaire ↔ registre (correspondance totale, unicité, schéma, données
+  synthétiques).
+- `tests/gso-t05-example-inventory.sh`, `tests/gso-t06-registry-autoload.sh` +
+  fixture négative `tests/fixtures/l1-broken/`.
+- Cibles `make lint-registry` ; `make test-static` étendu ; CI étendue à
+  `GSO-T05`/`GSO-T06`.
+
+Aucun vault, aucun secret, aucun sélecteur, aucun appel au rôle : le dépôt
+reste non opérationnel par défaut.
+
 ### Ajouté — lot L0 (harnais)
 
 - `ansible.cfg` sans inventaire par défaut ; `-i` explicite obligatoire.
