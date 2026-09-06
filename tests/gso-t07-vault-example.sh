@@ -46,12 +46,12 @@ else
 fi
 
 # --- 2. Analyse en clair + schéma complet (validateur statique L2) ---
-if python3 "$DIR/lib/vault_lint.py" --inventory "$INV" > "$tmp/lint.out" 2>&1; then
+if python3 "$GSO_VALIDATE" vault --inventory "$INV" > "$tmp/lint.out" 2>&1; then
   sed 's/^/      /' "$tmp/lint.out"
-  pass "vault_lint : modèle d'exemple cohérent"
+  pass "validateur vault : modèle d'exemple cohérent"
 else
   sed 's/^/      /' "$tmp/lint.out"
-  fail "vault_lint : incohérence dans le modèle d'exemple"
+  fail "validateur vault : incohérence dans le modèle d'exemple"
 fi
 
 # --- 3. Aucune fuite de valeur dans la sortie du validateur ---
@@ -59,7 +59,7 @@ leak=0
 while IFS= read -r m; do
   [ -z "$m" ] && continue
   if grep -qF -- "$m" "$tmp/lint.out"; then
-    fail "fuite : le marqueur « $m » apparaît dans la sortie de vault_lint"
+    fail "fuite : le marqueur « $m » apparaît dans la sortie du validateur vault"
     leak=1
   fi
 done <<< "$MARKERS"
@@ -77,7 +77,7 @@ mk_case() {
     printf '%s\n' "$body"
     printf 'vault_retired_grav_sites: {}\n'
   } > "$d/gv/vault.yml.example"
-  if python3 "$DIR/lib/vault_lint.py" \
+  if python3 "$GSO_VALIDATE" vault \
       --inventory "$d/hosts.yml" \
       --registry "$d/gv/grav_sites.yml" \
       --vault "$d/gv/vault.yml.example" > "$d/out" 2>&1; then
@@ -156,7 +156,7 @@ cp "$INV" "$d/hosts.yml"
   printf '  grav-example-beta: {admin_user: u, admin_password: p, admin_email: e@x.invalid}\n'
   printf 'vault_retired_grav_sites: {}\n'
 } > "$d/gv/vault.yml.example"
-if python3 "$DIR/lib/vault_lint.py" --inventory "$d/hosts.yml" \
+if python3 "$GSO_VALIDATE" vault --inventory "$d/hosts.yml" \
     --registry "$d/gv/grav_sites.yml" --vault "$d/gv/vault.yml.example" > "$d/out" 2>&1; then
   fail "cas négatif « secret-dans-registre » accepté à tort"
 else
@@ -174,7 +174,7 @@ cp "$INV" "$d/hosts.yml"; cp "$REG" "$d/gv/grav_sites.yml"
   printf '  grav-example-alpha: {admin_user: u, admin_password: p, admin_email: e@x.invalid}\n'
   printf 'stray_root: {}\n'
 } > "$d/gv/vault.yml.example"
-if python3 "$DIR/lib/vault_lint.py" --inventory "$d/hosts.yml" \
+if python3 "$GSO_VALIDATE" vault --inventory "$d/hosts.yml" \
     --registry "$d/gv/grav_sites.yml" --vault "$d/gv/vault.yml.example" > "$d/out" 2>&1; then
   fail "cas négatif « racine-et-disjonction » accepté à tort"
 else

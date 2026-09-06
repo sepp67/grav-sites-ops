@@ -7,6 +7,10 @@ set -euo pipefail
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 export REPO_ROOT
 
+# Validateur partagé unique (registre + vault + sélecteur + préflight).
+GSO_VALIDATE="$REPO_ROOT/scripts/lib/gso_validate.py"
+export GSO_VALIDATE
+
 FAILURES=0
 
 pass() { printf 'PASS  %s\n' "$*"; }

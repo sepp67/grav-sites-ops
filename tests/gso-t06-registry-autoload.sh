@@ -85,22 +85,22 @@ else
 fi
 
 # --- 4. Cohérence structurelle du registre (validateur statique L1) ---
-if python3 "$DIR/lib/registry_lint.py" --inventory "$INV" --context example \
+if python3 "$GSO_VALIDATE" registry --inventory "$INV" --context example \
   | sed 's/^/      /'; then
-  pass "registry_lint : registre d'exemple cohérent"
+  pass "validateur registre : registre d'exemple cohérent"
 else
-  fail "registry_lint : incohérence détectée"
+  fail "validateur registre : incohérence détectée"
 fi
 
 # --- 5. Cas négatif : le validateur DOIT rejeter une fixture cassée ---
 FIX="$DIR/fixtures/l1-broken/inventories/example/hosts.yml"
 if [ -f "$FIX" ]; then
-  if python3 "$DIR/lib/registry_lint.py" --inventory "$FIX" --context example \
+  if python3 "$GSO_VALIDATE" registry --inventory "$FIX" --context example \
       > "$tmp/neg.out" 2>&1; then
-    fail "registry_lint accepte à tort la fixture volontairement cassée"
+    fail "validateur registre accepte à tort la fixture volontairement cassée"
   else
     n="$(grep -c '^FAIL' "$tmp/neg.out" || true)"
-    pass "registry_lint rejette la fixture cassée ($n écart(s) détecté(s))"
+    pass "validateur registre rejette la fixture cassée ($n écart(s) détecté(s))"
   fi
 else
   fail "fixture négative absente : $FIX"
