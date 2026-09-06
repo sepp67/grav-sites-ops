@@ -1,8 +1,10 @@
 ---
 # FIXTURE DE TEST — volontairement incohérente (voir hosts.yml voisin).
 # Écarts injectés : correspondance rompue (fixture-host-b sans entrée,
-# entrée "ghost" sans hôte), collision de container_name, image avec tag
-# `latest`, version vide, endpoint dupliqué.
+# entrée "ghost" sans hôte), collision de container_name / base_directory /
+# endpoint, image avec tag `latest`, version vide, state destructif,
+# déclaration de runtime interdite, adresse non documentaire, champ hors
+# schéma.
 grav_sites:
   fixture-host-a:
     project_name: fixture-a
@@ -23,4 +25,5 @@ grav_sites:
     base_directory: /opt/fixture-a
     bind_address: 192.0.2.201
     http_port: 8080
-    state: started
+    state: purged
+    grav_runtime: "1.0"
