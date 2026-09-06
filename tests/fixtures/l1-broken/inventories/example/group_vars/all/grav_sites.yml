@@ -1,0 +1,26 @@
+---
+# FIXTURE DE TEST — volontairement incohérente (voir hosts.yml voisin).
+# Écarts injectés : correspondance rompue (fixture-host-b sans entrée,
+# entrée "ghost" sans hôte), collision de container_name, image avec tag
+# `latest`, version vide, endpoint dupliqué.
+grav_sites:
+  fixture-host-a:
+    project_name: fixture-a
+    image: registry.example.invalid/example/grav-fixture:latest
+    version: ""
+    digest: ""
+    container_name: shared-name
+    base_directory: /opt/fixture-a
+    bind_address: 192.0.2.201
+    http_port: 8080
+    state: started
+  ghost:
+    project_name: fixture-ghost
+    image: registry.example.invalid/example/grav-ghost
+    version: "1.0.0"
+    digest: ""
+    container_name: shared-name
+    base_directory: /opt/fixture-a
+    bind_address: 192.0.2.201
+    http_port: 8080
+    state: started
