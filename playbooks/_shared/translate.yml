@@ -1,0 +1,45 @@
+---
+# Traduction EXACTE des données déclaratives vers l'interface publique de
+# `sepp67.grav_site` v2.0.0. Aucune transformation, aucune valeur globale,
+# aucun repli vers un autre hôte : les données proviennent EXCLUSIVEMENT de
+# `grav_sites[inventory_hostname]` et `vault_grav_sites[inventory_hostname]`
+# (GSO-REQ-015, GSO-REQ-018, GSO-REQ-061, GSO-REQ-063).
+
+- name: "Traduire le registre non secret vers grav_* (GSO-REQ-010/020/021/111)"
+  ansible.builtin.set_fact:
+    grav_image: "{{ _reg.image }}"
+    grav_version: "{{ _reg.version }}"
+    grav_digest: "{{ _reg.digest | default('') }}"
+    grav_container_name: "{{ _reg.container_name }}"
+    grav_base_directory: "{{ _reg.base_directory }}"
+    grav_bind_address: "{{ _reg.bind_address }}"
+    grav_http_port: "{{ _reg.http_port | int }}"
+    grav_state: "{{ _reg.state | default('started') }}"
+    grav_force_pull: "{{ _reg.force_pull | default(false) | bool }}"
+    grav_manage_docker: "{{ _reg.manage_docker | default(true) | bool }}"
+    grav_site_check_path: "{{ _reg.site_check_path | default('/') }}"
+    grav_extra_environment: "{{ _reg.extra_environment | default({}) }}"
+  vars:
+    _reg: "{{ grav_sites[inventory_hostname] }}"
+
+# Bootstrap administrateur : tri-state (0 ou 3), déjà vérifié par le préflight
+# structurel (GSO-REQ-062). Secrets applicatifs : transmis TELS QUELS, forme
+# `name` + `content` uniquement, jamais `src` (GSO-REQ-203). `no_log` couvre
+# toute cette tâche (GSO-REQ-024/092).
+- name: "Traduire le bootstrap administrateur et les secrets applicatifs (secret)"
+  ansible.builtin.set_fact:
+    grav_admin_user: "{{ _v.admin_user | default('') }}"
+    grav_admin_password: "{{ _v.admin_password | default('') }}"
+    grav_admin_email: "{{ _v.admin_email | default('') }}"
+    grav_admin_fullname: "{{ _v.admin_fullname | default('') }}"
+    grav_admin_title: "{{ _v.admin_title | default('') }}"
+    grav_admin_language: "{{ _v.admin_language | default('') }}"
+    grav_admin_type: "{{ _v.admin_type | default('') }}"
+    grav_secrets: "{{ _v.secrets | default([]) }}"
+  no_log: true
+  vars:
+    _v: "{{ vault_grav_sites[inventory_hostname] }}"
+
+# Aucune fonctionnalité de rotation d'identifiants n'est déclarée ni simulée
+# (GSO-REQ-071) : la traduction ci-dessus se contente de transmettre les
+# valeurs au rôle, qui applique sa propre garde de bootstrap.

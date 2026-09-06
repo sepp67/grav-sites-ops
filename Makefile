@@ -1,8 +1,8 @@
 # grav-sites-ops — points d'entree
 #
-# Lots L0-L3. Ce Makefile expose l'installation de la dependance, les tests,
-# et les controles LOCAUX en lecture seule (validate / preflight). Les cibles
-# mutantes (deploy, restart, stop) seront ajoutees a partir du lot L4.
+# Lots L0-L4. Installation des dependances, tests, controles locaux en
+# lecture seule (validate / preflight) et deploiement d'UN site (deploy).
+# restart / stop seront ajoutes au lot L5.
 #
 # SITE est transmis tel quel au selecteur, entre guillemets, sans
 # reinterpretation shell (GSO-REQ-084). L'inventaire est fixe par le depot
@@ -20,8 +20,8 @@ help: ## Affiche cette aide
 	  | awk 'BEGIN {FS = ":.*?## "} {printf "  \033[36m%-16s\033[0m %s\n", $$1, $$2}'
 
 .PHONY: install-role
-install-role: ## Installe sepp67.grav_site depuis requirements.yml dans ./roles
-	ansible-galaxy role install -r requirements.yml -p $(ROLES_PATH) --force
+install-role: ## Installe sepp67.grav_site + community.docker depuis requirements.yml
+	ansible-galaxy install -r requirements.yml --force
 
 .PHONY: lint
 lint: ## yamllint + ansible-lint sur le depot
@@ -55,6 +55,10 @@ validate: ## Selecteur ferme : valide SITE contre l'inventaire impose (lecture s
 .PHONY: preflight
 preflight: ## Preflight operateur : selecteur + coherence registre/vault (lecture seule)
 	bash scripts/preflight.sh "$(SITE)"
+
+.PHONY: deploy
+deploy: ## Deploie/actualise UN site : selecteur -> verrou -> deploy-site.yml -> role
+	bash scripts/deploy.sh "$(SITE)"
 
 .PHONY: lint-registry
 lint-registry: ## Valide le registre d'exemple (validateur statique L1)

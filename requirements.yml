@@ -17,3 +17,11 @@ roles:
   - name: sepp67.grav_site
     src: git+https://github.com/sepp67/ansible-role-grav-site.git
     version: "v2.0.0"
+
+# Collection requise par sepp67.grav_site v2.0.0 (voir le requirements.yml du
+# rôle). Bornée à l'identique ; pas de branche flottante (GSO-REQ-041,
+# GSO-REQ-103). Installée par `ansible-galaxy install -r requirements.yml`
+# ou `make install-role`.
+collections:
+  - name: community.docker
+    version: ">=5.0.0,<6.0.0"
