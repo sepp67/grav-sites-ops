@@ -36,6 +36,8 @@ jobs:
         run: bash tests/gso-t05-example-inventory.sh
       - name: GSO-T06 — registre chargé automatiquement
         run: bash tests/gso-t06-registry-autoload.sh
+      - name: GSO-T07 — correspondance hôte–registre–vault d'exemple
+        run: bash tests/gso-t07-vault-example.sh
       - name: GSO-T23 — aucune dépendance au control-repository
         run: bash tests/gso-t23-no-control-repository.sh
       - name: GSO-T24 — aucun chemin local ni secret suivi

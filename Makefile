@@ -36,12 +36,17 @@ test-static: ## Execute les tests statiques (hors acces reseau)
 	bash tests/gso-t04-role-pinned.sh
 	bash tests/gso-t05-example-inventory.sh
 	bash tests/gso-t06-registry-autoload.sh
+	bash tests/gso-t07-vault-example.sh
 	bash tests/gso-t23-no-control-repository.sh
 	bash tests/gso-t24-no-local-paths-secrets.sh
 
 .PHONY: lint-registry
 lint-registry: ## Valide le registre d'exemple (validateur statique L1)
 	python3 tests/lib/registry_lint.py --inventory inventories/example/hosts.yml --context example
+
+.PHONY: lint-vault
+lint-vault: ## Valide le modele de vault d'exemple (validateur statique L2)
+	python3 tests/lib/vault_lint.py --inventory inventories/example/hosts.yml
 
 .PHONY: test-role
 test-role: ## Verifie l'installation du role (acces reseau requis)
