@@ -1,0 +1,49 @@
+---
+# Registre actif d'EXEMPLE — lot L1.
+#
+# Chargé automatiquement par Ansible parce qu'il est sous `group_vars/all/`
+# adjacent à `inventories/example/hosts.yml` (GSO-REQ-012). Aucun
+# `include_vars`, aucun chemin de workstation.
+#
+# Dictionnaire racine unique : `grav_sites` (GSO-REQ-128). Chaque clé
+# correspond exactement à un hôte de `hosts.yml` et réciproquement
+# (GSO-REQ-013). Schéma complet : docs/REGISTRY-SCHEMA.md (GSO-REQ-048).
+#
+# Données entièrement synthétiques :
+#   - images sur le domaine réservé `registry.example.invalid` (RFC 2606),
+#     sans tag incorporé (GSO-REQ-010, GSO-REQ-020, GSO-REQ-041) ;
+#   - versions humaines explicites et non vides (GSO-REQ-021, GSO-REQ-154) ;
+#   - adresses dans TEST-NET-1 (GSO-REQ-068) ;
+#   - aucun secret, aucun identifiant (les secrets relèvent du lot L2).
+
+grav_sites:
+
+  grav-example-alpha:
+    project_name: example-alpha
+    image: registry.example.invalid/example/grav-site-alpha
+    version: "1.0.0"
+    digest: ""
+    container_name: example-alpha
+    base_directory: /opt/example-alpha
+    bind_address: 192.0.2.11
+    http_port: 8080
+    state: started
+    force_pull: false
+    manage_docker: true
+    site_check_path: /
+    extra_environment: {}
+
+  grav-example-beta:
+    project_name: example-beta
+    image: registry.example.invalid/example/grav-site-beta
+    version: "2.3.1"
+    digest: ""
+    container_name: example-beta
+    base_directory: /opt/example-beta
+    bind_address: 192.0.2.12
+    http_port: 8081
+    state: stopped
+    force_pull: false
+    manage_docker: true
+    site_check_path: /
+    extra_environment: {}
