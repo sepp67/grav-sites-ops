@@ -1,20 +1,33 @@
 ---
-# Traduction EXACTE des données déclaratives vers l'interface publique de
-# `sepp67.grav_site` v2.0.0. Aucune transformation, aucune valeur globale,
-# aucun repli vers un autre hôte : les données proviennent EXCLUSIVEMENT de
-# `grav_sites[inventory_hostname]` et `vault_grav_sites[inventory_hostname]`
-# (GSO-REQ-015, GSO-REQ-018, GSO-REQ-061, GSO-REQ-063).
+# Traduction FERMÉE des données déclaratives + de l'intention vers l'interface
+# publique de `sepp67.grav_site` v2.0.0. Aucune transformation, aucune valeur
+# globale, aucun repli vers un autre hôte : les données proviennent
+# EXCLUSIVEMENT de `grav_sites[inventory_hostname]` et
+# `vault_grav_sites[inventory_hostname]` (GSO-REQ-015/018/061/063).
+
+- name: "Assertion : intention d'action fermée (deploy | restart | stop)"
+  ansible.builtin.assert:
+    that:
+      - _gso_intent is defined
+      - _gso_intent in ['deploy', 'restart', 'stop']
+    fail_msg: >-
+      Intention d'action inconnue. `grav_state` est déterminé par le point
+      d'entrée invoqué, jamais fourni par l'opérateur.
+    quiet: true
 
 - name: "Traduire le registre non secret vers grav_* (GSO-REQ-010/020/021/111)"
   ansible.builtin.set_fact:
     grav_image: "{{ _reg.image }}"
-    grav_version: "{{ _reg.version }}"
-    grav_digest: "{{ _reg.digest | default('') }}"
+    grav_version: "{{ _reg.version }}"                    # jamais modifié par restart/stop (GSO-REQ-088)
+    grav_digest: "{{ _reg.digest | default('') }}"        # idem
     grav_container_name: "{{ _reg.container_name }}"
     grav_base_directory: "{{ _reg.base_directory }}"
     grav_bind_address: "{{ _reg.bind_address }}"
     grav_http_port: "{{ _reg.http_port | int }}"
-    grav_state: "{{ _reg.state | default('started') }}"
+    grav_state: >-
+      {{ 'restarted' if _gso_intent == 'restart'
+         else ('stopped' if _gso_intent == 'stop'
+               else (_reg.state | default('started'))) }}
     grav_force_pull: "{{ _reg.force_pull | default(false) | bool }}"
     grav_manage_docker: "{{ _reg.manage_docker | default(true) | bool }}"
     grav_site_check_path: "{{ _reg.site_check_path | default('/') }}"
@@ -41,5 +54,5 @@
     _v: "{{ vault_grav_sites[inventory_hostname] }}"
 
 # Aucune fonctionnalité de rotation d'identifiants n'est déclarée ni simulée
-# (GSO-REQ-071) : la traduction ci-dessus se contente de transmettre les
-# valeurs au rôle, qui applique sa propre garde de bootstrap.
+# (GSO-REQ-071) : la traduction se contente de transmettre les valeurs au
+# rôle, qui applique sa propre garde de bootstrap.

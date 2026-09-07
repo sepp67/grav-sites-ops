@@ -1,0 +1,22 @@
+---
+# restart-site.yml — intention `restart` : redémarrer l'instance de l'hôte
+# sélectionné SANS changer sa référence désirée (lot L5).
+#
+# GSO-REQ-088 : le redémarrage NE modifie ni `version`, ni `digest`, ni les
+# fichiers persistants. La traduction passe `grav_version` / `grav_digest`
+# du registre INCHANGÉS et fixe `grav_state: restarted` — ce n'est ni un
+# redéploiement, ni une mise à jour. Une seule intention (GSO-REQ-081).
+#
+# Même chemin, même verrou et même séquence que `deploy` (_shared/mutate.yml).
+
+- name: "Redémarrer un site Grav"
+  hosts: grav_servers
+  gather_facts: false
+  become: false
+  any_errors_fatal: true
+  vars:
+    _gso_intent: restart         # fixé par le point d'entrée, jamais par l'opérateur
+
+  tasks:
+    - name: "Séquence de mutation (assertions -> préflight -> traduction -> rôle)"
+      ansible.builtin.include_tasks: _shared/mutate.yml

@@ -1,0 +1,23 @@
+---
+# stop-site.yml — intention `stop` : arrêter le conteneur de l'hôte
+# sélectionné sur une VM encore active et inventoriée (lot L5).
+#
+# GSO-REQ-089 : `stop` NE supprime ni conteneur, ni volume, ni répertoire
+# persistant, ni fichier de déploiement. Ne retire pas le site du registre,
+# n'arrête pas la VM. La traduction fixe `grav_state: stopped` (le rôle
+# arrête sans détruire) ; aucune tâche destructive n'est introduite ici.
+# Réversible : le prochain `deploy` remet l'instance dans son état désiré.
+#
+# Même chemin, même verrou et même séquence que `deploy` (_shared/mutate.yml).
+
+- name: "Arrêter un site Grav"
+  hosts: grav_servers
+  gather_facts: false
+  become: false
+  any_errors_fatal: true
+  vars:
+    _gso_intent: stop            # fixé par le point d'entrée, jamais par l'opérateur
+
+  tasks:
+    - name: "Séquence de mutation (assertions -> préflight -> traduction -> rôle)"
+      ansible.builtin.include_tasks: _shared/mutate.yml

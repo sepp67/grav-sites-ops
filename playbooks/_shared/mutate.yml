@@ -1,0 +1,44 @@
+---
+# Séquence COMMUNE aux mutations d'un site (deploy / restart / stop).
+#
+# Le playbook appelant fixe `_gso_intent` (deploy | restart | stop) — c'est
+# le point d'entrée, jamais l'opérateur, qui détermine l'action. Ce fichier
+# ne contient AUCUNE tâche Docker/Grav propre au rôle (GSO-REQ-019/035) et
+# ne cible jamais tout le parc (GSO-REQ-082).
+#
+# Ordre : assertions -> second préflight structurel -> traduction fermée ->
+# invocation UNIQUE du rôle (GSO-REQ-087).
+
+- name: "Assertion : --limit désigne exactement l'hôte courant, et un seul (GSO-REQ-016/017/057/082/094)"
+  ansible.builtin.assert:
+    that:
+      - ansible_limit is defined
+      - (ansible_limit | string | trim | length) > 0
+      - ansible_limit | string not in ['all', '*']
+      - (ansible_play_hosts_all | length) == 1
+      - ansible_limit | string == inventory_hostname
+    fail_msg: >-
+      Cible ambiguë, absente ou multiple : --limit doit valoir exactement le
+      nom de l'hôte visé. Aucune opération globale n'est autorisée.
+    quiet: true
+
+- name: "Préflight structurel local — registre / vault / bootstrap / secrets (GSO-REQ-204, GSO-REQ-085 niveau 2)"
+  ansible.builtin.command:
+    argv:
+      - "{{ ansible_playbook_python | default('python3') }}"
+      - "{{ playbook_dir }}/../scripts/lib/gso_validate.py"
+      - preflight
+      - "{{ inventory_hostname }}"
+  delegate_to: localhost
+  changed_when: false
+  check_mode: false          # contrôle en lecture seule : doit s'exécuter même en --check (GSO-REQ-091)
+  no_log: true               # ne jamais laisser fuir une valeur (GSO-REQ-024/092/101)
+  register: _gso_preflight
+  failed_when: _gso_preflight.rc != 0
+
+- name: "Traduction fermée : registre + vault + intention -> interface publique du rôle v2.0.0"
+  ansible.builtin.include_tasks: translate.yml
+
+- name: "Invoquer sepp67.grav_site — exactement une fois (GSO-REQ-087)"
+  ansible.builtin.include_role:
+    name: sepp67.grav_site

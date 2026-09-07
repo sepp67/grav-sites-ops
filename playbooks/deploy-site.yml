@@ -1,56 +1,19 @@
 ---
-# deploy-site.yml — déploiement / mise à jour d'UN site Grav (lot L4).
+# deploy-site.yml — intention `deploy` : appliquer l'état désiré du registre à
+# l'instance de l'hôte sélectionné, en composant `sepp67.grav_site` (lot L4).
+# Une seule intention (GSO-REQ-081) ; jamais globale (GSO-REQ-082).
 #
-# Une seule intention : appliquer l'état désiré du registre à l'instance de
-# l'hôte sélectionné, en composant `sepp67.grav_site` (GSO-REQ-081).
-#
-# Ordre impératif du chemin opérateur (voir docs/OPERATIONS.md) :
-#   SITE littéral -> préflight local (scripts/validate-target.sh, L3)
-#                 -> verrou de concurrence (scripts/deploy.sh, flock)
-#                 -> assertions de ce playbook (niveau 2)
-#                 -> invocation UNIQUE du rôle
-#
-# Ne contient aucune tâche Docker/Grav propre au rôle (GSO-REQ-019,
-# GSO-REQ-035, GSO-REQ-087). Ne cible jamais tout le parc (GSO-REQ-082).
+# Le chemin (sélecteur -> verrou -> assertions -> second préflight structurel
+# -> traduction -> rôle) : scripts/lib/site-mutation.sh + _shared/mutate.yml.
 
-- name: "Déployer un site Grav"
+- name: "Déployer / actualiser un site Grav"
   hosts: grav_servers
   gather_facts: false
   become: false                 # privilèges minimaux ; le rôle escalade au besoin (GSO-REQ-097)
   any_errors_fatal: true        # une cible ambiguë tue le play avant toute invocation du rôle
+  vars:
+    _gso_intent: deploy          # fixé par le point d'entrée, jamais par l'opérateur
 
   tasks:
-
-    - name: "Assertion : --limit désigne exactement l'hôte courant, et un seul (GSO-REQ-016/017/057/082/094)"
-      ansible.builtin.assert:
-        that:
-          - ansible_limit is defined
-          - (ansible_limit | string | trim | length) > 0
-          - ansible_limit | string not in ['all', '*']
-          - (ansible_play_hosts_all | length) == 1
-          - ansible_limit | string == inventory_hostname
-        fail_msg: >-
-          Cible ambiguë, absente ou multiple : --limit doit valoir exactement
-          le nom de l'hôte à déployer. Aucun déploiement global n'est autorisé.
-        quiet: true
-
-    - name: "Préflight structurel local — registre / vault / bootstrap / secrets (GSO-REQ-204, GSO-REQ-085 niveau 2)"
-      ansible.builtin.command:
-        argv:
-          - "{{ ansible_playbook_python | default('python3') }}"
-          - "{{ playbook_dir }}/../scripts/lib/gso_validate.py"
-          - preflight
-          - "{{ inventory_hostname }}"
-      delegate_to: localhost
-      changed_when: false
-      check_mode: false          # contrôle en lecture seule : doit s'exécuter même en --check (GSO-REQ-091)
-      no_log: true               # ne jamais laisser fuir une valeur (GSO-REQ-024/092/101)
-      register: _gso_preflight
-      failed_when: _gso_preflight.rc != 0
-
-    - name: "Traduire le registre et le vault vers l'interface publique du rôle v2.0.0"
-      ansible.builtin.include_tasks: _shared/translate.yml
-
-    - name: "Invoquer sepp67.grav_site — exactement une fois (GSO-REQ-087)"
-      ansible.builtin.include_role:
-        name: sepp67.grav_site
+    - name: "Séquence de mutation (assertions -> préflight -> traduction -> rôle)"
+      ansible.builtin.include_tasks: _shared/mutate.yml
