@@ -108,7 +108,9 @@ if git grep -qIE 'deploy-all|restart-all|stop-all|hosts:[[:space:]]*all\b' -- pl
 else
   pass "aucune action implicite, combinée ou globale"
 fi
-known="gso-t01 gso-t02 gso-t03 gso-t04 gso-t05 gso-t06 gso-t07 gso-t08 gso-t09 gso-t10 gso-t11 gso-t12 gso-t13 gso-t14 gso-t15 gso-t16 gso-t23 gso-t24"
+# Ensemble FERMÉ des identifiants GSO-T du contrat (§18.2) : gso-t01..gso-t24.
+# Aucun test ne doit inventer un identifiant hors de cette liste (ex. gso-t25).
+known="gso-t01 gso-t02 gso-t03 gso-t04 gso-t05 gso-t06 gso-t07 gso-t08 gso-t09 gso-t10 gso-t11 gso-t12 gso-t13 gso-t14 gso-t15 gso-t16 gso-t17 gso-t18 gso-t19 gso-t20 gso-t21 gso-t22 gso-t23 gso-t24"
 extra=""
 while IFS= read -r f; do
   id="$(basename "$f" | grep -oE '^gso-t[0-9]+')"
