@@ -1,0 +1,59 @@
+---
+# check-site.yml — intention `check` : comparer, pour UN hôte, l'état désiré
+# (registre), l'état appliqué (.deployed_state.yml) et l'état réel
+# (conteneur + endpoint), puis classer la dérive (contrat §13.7, §16).
+#
+# STRICTEMENT NON MUTANT (GSO-REQ-090/119/122) : aucune correction, aucun
+# `include_role`/`import_role` de sepp67.grav_site, aucune écriture, aucun
+# pull, aucune action sur un conteneur. La détection d'une dérive NE
+# déclenche PAS `deploy-site.yml` — la remédiation est une commande
+# opérateur distincte.
+#
+# Chemin : SITE fermé -> sélecteur fermé L3 -> assertion cible unique ->
+# collecte lecture seule -> classification -> verdict + code de sortie.
+# Sortie : `0` si IN_SYNC ; `≠0` sinon (la catégorie §16.5 est affichée).
+
+- name: "Contrôler la dérive d'un site Grav"
+  hosts: grav_servers
+  gather_facts: false             # GSO-REQ-124 : aucun fact de la cible n'est nécessaire
+  become: false
+  any_errors_fatal: true
+
+  tasks:
+
+    - name: "Assertion : --limit désigne exactement l'hôte courant, et un seul (GSO-REQ-085 niveau 2)"
+      ansible.builtin.assert:
+        that:
+          - ansible_limit is defined
+          - (ansible_limit | string | trim | length) > 0
+          - ansible_limit | string not in ['all', '*']
+          - (ansible_play_hosts_all | length) == 1
+          - ansible_limit | string == inventory_hostname
+        fail_msg: >-
+          Cible ambiguë, absente ou multiple : `check-site` contrôle
+          exactement un hôte. Pour parcourir le parc, utiliser `check-all`.
+        quiet: true
+
+    - name: "Collecte lecture seule + classification de la dérive"
+      ansible.builtin.include_tasks: _shared/observe.yml
+
+    - name: "Rapport de contrôle (sans secret — GSO-REQ-123)"
+      ansible.builtin.debug:
+        msg: >-
+          {{ inventory_hostname }} : {{ _gso_verdict.category }}
+          — {{ _gso_verdict.reasons | join(' ; ') }}
+          | références désiré={{ _gso_verdict.references.desired }}
+          appliqué={{ _gso_verdict.references.applied | default('—') }}
+          réel={{ _gso_verdict.references.real | default('—') }}
+          {{ ('| .last_failure.log présent (' ~ _gso_lastfailure_mtime ~ ')') if _gso_lastfailure_seen else '' }}
+
+    - name: "Verdict : code de sortie non nul si l'état n'est pas IN_SYNC (GSO-REQ-093/122)"
+      ansible.builtin.assert:
+        that:
+          - _gso_verdict.category == 'IN_SYNC'
+        fail_msg: >-
+          Dérive ou état indéterminable : {{ _gso_verdict.category }}
+          ({{ _gso_verdict.reasons | join(' ; ') }}). Aucune remédiation
+          automatique — utiliser une commande opérateur dédiée si besoin.
+        success_msg: "{{ inventory_hostname }} conforme (IN_SYNC)."
+        quiet: true

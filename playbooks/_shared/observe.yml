@@ -1,0 +1,162 @@
+---
+# Collecte LECTURE SEULE des trois niveaux d'état d'UN hôte (contrat §16.1)
+# puis classification de la dérive (contrat §16.5). Inclus tel quel par
+# check-site.yml (un hôte) et check-all.yml (chaque hôte du groupe).
+#
+# GSO-REQ-090  : aucune primitive mutante, aucun include_role du rôle.
+# GSO-REQ-119  : ne touche jamais .deployed_state.yml / .deployed_version /
+#                deployed_versions.log (slurp = lecture).
+# GSO-REQ-123  : n'ouvre pas le vault, n'affiche aucune valeur secrète ;
+#                signale seulement la présence/horodatage de .last_failure.log.
+# GSO-REQ-124  : gather_facts reste false (fixé par le playbook appelant).
+
+- name: "État désiré — registre au SHA courant (aucun secret — GSO-REQ-118/123)"
+  ansible.builtin.set_fact:
+    _gso_desired:
+      image: "{{ _reg.image }}"
+      version: "{{ _reg.version | string }}"
+      digest: "{{ _reg.digest | default('') }}"
+      container_name: "{{ _reg.container_name }}"
+      base_directory: "{{ _reg.base_directory }}"
+      bind_address: "{{ _reg.bind_address }}"
+      http_port: "{{ _reg.http_port | int }}"
+      state: "{{ _reg.state | default('started') }}"
+      site_check_path: "{{ _reg.site_check_path | default('/') }}"
+  vars:
+    _reg: "{{ grav_sites[inventory_hostname] }}"
+
+- name: "Sonde de joignabilité de la cible (lecture seule)"
+  ansible.builtin.raw: "true"
+  register: _gso_reach
+  changed_when: false
+  check_mode: false
+  ignore_unreachable: true
+  ignore_errors: true
+
+- name: "Initialiser les résultats de collecte"
+  ansible.builtin.set_fact:
+    _gso_applied_raw: {}
+    _gso_inspect: {}
+    _gso_http: {}
+    _gso_lastfail: {}
+
+- name: "Collecte de l'état appliqué et de l'état réel (cible joignable)"
+  when: _gso_reach is not unreachable
+  block:
+
+    - name: "État appliqué — lire .deployed_state.yml (lecture seule — GSO-REQ-119)"
+      ansible.builtin.slurp:
+        src: "{{ _gso_desired.base_directory }}/.deployed_state.yml"
+      register: _gso_applied_raw
+      changed_when: false
+      check_mode: false
+      failed_when: false
+
+    - name: "Présence et horodatage de .last_failure.log (jamais son contenu — GSO-REQ-123)"
+      ansible.builtin.stat:
+        path: "{{ _gso_desired.base_directory }}/.last_failure.log"
+        get_checksum: false
+      register: _gso_lastfail
+      changed_when: false
+      check_mode: false
+      failed_when: false
+
+    - name: "État réel — docker inspect du conteneur attendu (lecture seule — GSO-REQ-090)"
+      ansible.builtin.command:
+        argv: ["docker", "inspect", "{{ _gso_desired.container_name }}"]
+      register: _gso_inspect
+      changed_when: false
+      check_mode: false
+      failed_when: false
+
+    - name: "État réel — endpoint HTTP local (corroboration ; jamais bloquant)"
+      ansible.builtin.uri:
+        url: "http://{{ _gso_desired.bind_address }}:{{ _gso_desired.http_port }}{{ _gso_desired.site_check_path }}"
+        method: GET
+        status_code: [200, 201, 202, 203, 204, 301, 302, 303, 307, 308, 401, 403, 404, 500, 502, 503]
+        timeout: 3
+      register: _gso_http
+      changed_when: false
+      check_mode: false
+      failed_when: false
+
+- name: "Normaliser l'état appliqué (.deployed_state.yml -> objet ou erreur)"
+  ansible.builtin.set_fact:
+    _gso_applied: >-
+      {{ (_gso_applied_raw.content | b64decode | from_yaml)
+         if (_gso_applied_raw.content is defined
+             and (_gso_applied_raw.content | b64decode | trim | length) > 0)
+         else None }}
+    _gso_applied_error: >-
+      {{ 'absent' if (_gso_applied_raw.content is not defined)
+         else ('unreadable' if (_gso_applied_raw.content | b64decode | trim | length) == 0 else '') }}
+
+# `docker inspect` -> un objet conteneur (dict) ou un dict vide. On reste en
+# types simples : le classificateur (gso_classify.py) tolère '' / 'None'.
+- name: "Normaliser docker inspect -> objet conteneur ou dict vide"
+  ansible.builtin.set_fact:
+    _gso_ctn: >-
+      {{ (_gso_inspect.stdout | from_json | first)
+         if ((_gso_inspect.rc | default(1)) == 0
+             and (_gso_inspect.stdout | default('') | trim | length) > 0
+             and (_gso_inspect.stdout | from_json | length) > 0)
+         else {} }}
+
+- name: "Extraire les champs de l'état réel (accès protégés)"
+  ansible.builtin.set_fact:
+    _gso_real_exists: "{{ (_gso_ctn is mapping) and (_gso_ctn | length > 0) }}"
+    _gso_real_image: "{{ _gso_ctn.Config.Image if (_gso_ctn is mapping and 'Config' in _gso_ctn) else '' }}"
+    _gso_real_running: "{{ (_gso_ctn.State.Running | default(false)) if (_gso_ctn is mapping and 'State' in _gso_ctn) else false }}"
+    _gso_real_health: "{{ _gso_ctn.State.Health.Status if (_gso_ctn is mapping and 'State' in _gso_ctn and 'Health' in _gso_ctn.State) else '' }}"
+    _gso_http_status: "{{ _gso_http.status | default('') }}"
+    _gso_pub_port: >-
+      {{ _gso_ports[_gso_pkey][0].HostPort
+         if (_gso_ports is mapping and _gso_pkey in _gso_ports and _gso_ports[_gso_pkey])
+         else '' }}
+  vars:
+    _gso_pkey: "{{ _gso_desired.http_port | string ~ '/tcp' }}"
+    _gso_ports: "{{ _gso_ctn.NetworkSettings.Ports if (_gso_ctn is mapping and 'NetworkSettings' in _gso_ctn and _gso_ctn.NetworkSettings.Ports) else {} }}"
+
+- name: "Assembler l'observation pour le classificateur"
+  ansible.builtin.set_fact:
+    _gso_observation:
+      host: "{{ inventory_hostname }}"
+      desired: "{{ _gso_desired }}"
+      applied: "{{ _gso_applied }}"
+      applied_error: "{{ _gso_applied_error }}"
+      real:
+        reachable: "{{ _gso_reach is not unreachable }}"
+        container_exists: "{{ _gso_real_exists }}"
+        container_image: "{{ _gso_real_image }}"
+        running: "{{ _gso_real_running }}"
+        health: "{{ _gso_real_health }}"
+        published_port: "{{ _gso_pub_port }}"
+        http_status: "{{ _gso_http_status }}"
+      real_error: "{{ _gso_real_error }}"
+  vars:
+    _gso_real_error: >-
+      {{ 'unreachable' if (_gso_reach is unreachable)
+         else ('docker_unavailable'
+               if ((_gso_inspect.rc | default(0)) != 0
+                   and ('Cannot connect to the Docker daemon' in (_gso_inspect.stderr | default(''))
+                        or 'permission denied while trying to connect' in (_gso_inspect.stderr | default(''))))
+               else '') }}
+
+- name: "Classifier la dérive (fonction pure, sur le contrôleur — GSO-REQ-118/121)"
+  ansible.builtin.command:
+    argv:
+      - "{{ ansible_playbook_python | default('python3') }}"
+      - "{{ playbook_dir }}/../scripts/lib/gso_classify.py"
+    stdin: "{{ _gso_observation | to_json }}"
+  delegate_to: localhost
+  changed_when: false
+  check_mode: false
+  register: _gso_classify_out
+
+- name: "Verdict de l'hôte"
+  ansible.builtin.set_fact:
+    _gso_verdict: "{{ _gso_classify_out.stdout | from_json }}"
+    _gso_lastfailure_seen: "{{ _gso_lastfail.stat.exists | default(false) }}"
+    _gso_lastfailure_mtime: >-
+      {{ ('%Y-%m-%dT%H:%M:%SZ' | strftime(_gso_lastfail.stat.mtime))
+         if (_gso_lastfail.stat.exists | default(false)) else '' }}

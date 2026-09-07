@@ -1,0 +1,77 @@
+---
+# check-all.yml — intention `check-all` : produire une vue de dérive de TOUT
+# le parc actif (`grav_servers`), sans connexion mutante (contrat §13.7,
+# §16.9). Unique interface prévue pour parcourir le parc.
+#
+# STRICTEMENT NON MUTANT (GSO-REQ-090/104/119/122) : aucune correction,
+# aucun `include_role`/`import_role` de sepp67.grav_site, aucune écriture,
+# aucune action sur un conteneur. Aucune confirmation globale ne peut y
+# déclencher une mutation.
+#
+# La cohérence déclarative du parc (hôte sans site, site sans hôte, doublon,
+# actif+retiré) est vérifiée EN AMONT, sans VM, par le validateur de
+# registre (GSO-REQ-125, dans scripts/lib/site-check.sh).
+#
+# Sortie : `0` si tout le parc est IN_SYNC ; `≠0` si au moins un hôte dévie
+# ou est indéterminable.
+
+- name: "Contrôler la dérive de tout le parc actif"
+  hosts: grav_servers
+  gather_facts: false
+  become: false
+  any_errors_fatal: false          # un hôte injoignable ne doit pas masquer les autres
+
+  tasks:
+
+    - name: "Assertion : le contrôle couvre bien le groupe, pas un sous-ensemble arbitraire"
+      ansible.builtin.assert:
+        that:
+          - (ansible_limit is not defined) or (ansible_limit | string in ['all', '*', 'grav_servers'])
+        fail_msg: >-
+          `check-all` parcourt tout `grav_servers` : ne pas le restreindre
+          avec --limit. Pour un seul hôte, utiliser `check-site`.
+        quiet: true
+      run_once: true
+
+    - name: "Collecte lecture seule + classification de la dérive (par hôte)"
+      ansible.builtin.include_tasks: _shared/observe.yml
+
+    - name: "Ligne de rapport par hôte (sans secret — GSO-REQ-123)"
+      ansible.builtin.debug:
+        msg: >-
+          {{ inventory_hostname }} : {{ _gso_verdict.category }}
+          — {{ _gso_verdict.reasons | join(' ; ') }}
+          {{ ('| .last_failure.log présent (' ~ _gso_lastfailure_mtime ~ ')') if _gso_lastfailure_seen else '' }}
+
+    - name: "Synthèse du parc"
+      run_once: true
+      ansible.builtin.debug:
+        msg: >-
+          Parc actif — non conformes : {{ _gso_offenders | join(', ') if _gso_offenders else 'aucun' }}
+          ({{ _gso_offenders | length }}/{{ ansible_play_hosts_all | length }})
+      vars:
+        _gso_offenders: "{{ _gso_noncompliant }}"
+
+    - name: "Verdict de parc : code non nul si un hôte n'est pas IN_SYNC (GSO-REQ-093)"
+      run_once: true
+      ansible.builtin.assert:
+        that:
+          - _gso_noncompliant | length == 0
+        fail_msg: "Parc non conforme — {{ _gso_noncompliant | join(', ') }} : voir le rapport ci-dessus. Aucune remédiation automatique."
+        success_msg: "Parc actif entièrement conforme (tous les hôtes IN_SYNC)."
+        quiet: true
+
+  vars:
+    _gso_noncompliant: >-
+      {{ ansible_play_hosts_all
+         | map('extract', hostvars)
+         | selectattr('_gso_verdict', 'defined')
+         | selectattr('_gso_verdict.category', 'ne', 'IN_SYNC')
+         | map(attribute='inventory_hostname')
+         | list
+         +
+         (ansible_play_hosts_all
+          | map('extract', hostvars)
+          | rejectattr('_gso_verdict', 'defined')
+          | map(attribute='inventory_hostname')
+          | list) }}
