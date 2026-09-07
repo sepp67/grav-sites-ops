@@ -13,8 +13,9 @@ DIR="$(cd "$(dirname "$0")" && pwd)"
 
 cd "$REPO_ROOT"
 
-tmp="$(mktemp -d)"
+tmp="$(gso_mktemp_dir t13)"
 trap 'rm -rf "$tmp"' EXIT
+gso_isolate_runtime "$tmp"        # verrous de site-mutation.sh confines dans $tmp
 T="$tmp/tree"
 l4_tmptree l3-prod-ok "$T"
 gso_spy_role_into "$T"
@@ -149,5 +150,7 @@ pb_neg "sans --limit"          # aucun ansible_limit
 pb_neg "--limit all" --limit all
 pb_neg "--limit multiple" --limit grav-alpha,grav-beta
 pb_neg "--limit groupe" --limit grav_servers
+
+gso_assert_runtime_clean
 
 finish

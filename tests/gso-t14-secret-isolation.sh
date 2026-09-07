@@ -12,8 +12,9 @@ DIR="$(cd "$(dirname "$0")" && pwd)"
 
 cd "$REPO_ROOT"
 
-tmp="$(mktemp -d)"
+tmp="$(gso_mktemp_dir t14)"
 trap 'rm -rf "$tmp"' EXIT
+gso_isolate_runtime "$tmp"        # verrous de site-mutation.sh confines dans $tmp
 
 VAULT_OK='vault_grav_sites:
   grav-alpha:
@@ -101,5 +102,7 @@ neg "secret sous forme src" grav-alpha 'vault_grav_sites:
     secrets: [{name: k.php, src: /etc/whatever}]
   grav-beta: {admin_user: u, admin_password: p, admin_email: b@example.invalid}
 vault_retired_grav_sites: {}'
+
+gso_assert_runtime_clean
 
 finish

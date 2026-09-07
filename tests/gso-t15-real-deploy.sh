@@ -58,29 +58,36 @@ for p in $(seq 18715 18815); do
 done
 [ "$PORT" != 0 ] || { fail "aucun port libre dans 18715-18815"; finish; }
 
-T="$(mktemp -d)"
+T="$(gso_mktemp_dir t15)"
 # Garde positive : l'arborescence de test doit vivre sous la zone temporaire,
-# jamais dans un répertoire de projet ou de home.
+# au préfixe reconnaissable `gso-t15.`, jamais dans un répertoire de projet
+# ou de home.
 case "$T/" in
-  "${TMPDIR:-/tmp}"/*/ | /tmp/*/ | /var/tmp/*/) : ;;
+  "${TMPDIR:-/tmp}"/gso-t15.*/ | /tmp/gso-t15.*/ | /var/tmp/gso-t15.*/) : ;;
   *) fail "mktemp hors de la zone temporaire attendue : $T"; finish ;;
 esac
 
+# Espace runtime (verrou flock) confiné sous $T : après le nettoyage de $T,
+# aucun fichier de verrou ne subsiste dans le dossier runtime réel.
+gso_isolate_runtime "$T"
+
 created_container=""
 created_network=""
-LOCK="${XDG_RUNTIME_DIR:-${TMPDIR:-/tmp}}/grav-sites-ops/locks/${SITE}.lock"
+LOCK="${XDG_RUNTIME_DIR}/grav-sites-ops/locks/${SITE}.lock"
 
 cleanup() {
   [ -n "$created_container" ] && docker rm -f "$created_container" >/dev/null 2>&1
   [ -n "$created_network" ] && docker network rm "$created_network" >/dev/null 2>&1
-  # sous-arbres appartenant à l'uid conteneur (82) : suppression par un
-  # conteneur jetable de la MÊME image approuvée, borné à $T.
+  # $T contient TOUTES les ressources fichier du test : arborescence de test,
+  # journal ($T/run.log), espace runtime isolé ($T/xdg-runtime, donc le verrou
+  # flock), fichiers Ansible temporaires éventuels. Certains sous-arbres
+  # appartiennent à l'uid conteneur (82) : suppression par un conteneur
+  # jetable de la MÊME image approuvée, borné à $T, puis rm hôte.
   if [ -d "$T" ]; then
     docker run --rm -v "$T:/w" --entrypoint sh "$IMG_REF:$IMG_VERSION" \
       -c 'rm -rf /w/* /w/.[!.]* 2>/dev/null || true' >/dev/null 2>&1 || true
     rm -rf "$T" 2>/dev/null || true
   fi
-  rm -f "$LOCK" 2>/dev/null || true
 }
 trap cleanup EXIT
 
@@ -141,7 +148,7 @@ ansible_python_interpreter: "{{ ansible_playbook_python }}"
 YML
 
 # --- 3. Exécution du chemin opérateur réel ---
-RUN="$T.run.log"
+RUN="$T/run.log"          # journal À L'INTÉRIEUR de $T (nettoyé avec l'arbre)
 drc=0
 ( cd "$T" && timeout 300 bash scripts/deploy.sh "$SITE" ) > "$RUN" 2>&1 || drc=$?
 # on connaît maintenant les ressources potentiellement créées
@@ -223,14 +230,18 @@ else
   fail "verrou toujours tenu après le déploiement"
 fi
 
-# --- 10. Nettoyage puis vérification d'absence de résidu ---
+# --- 10. Nettoyage puis vérification d'absence de résidu (non-régression) ---
 cleanup
 trap - EXIT
 resid=0
 docker ps -a --format '{{.Names}}' | grep -qx "$CTN" && { fail "conteneur résiduel $CTN"; resid=1; }
 docker network ls --format '{{.Name}}' | grep -qx "$NET" && { fail "réseau résiduel $NET"; resid=1; }
+docker ps -a --format '{{.Names}}' | grep -q '^gso-t15-' && { fail "conteneur gso-t15-* résiduel"; resid=1; }
+docker network ls --format '{{.Name}}' | grep -q '^gso-t15-' && { fail "réseau gso-t15-* résiduel"; resid=1; }
 [ -e "$T" ] && { fail "répertoire temporaire résiduel $T"; resid=1; }
+[ -e "$RUN" ] && { fail "journal résiduel $RUN"; resid=1; }
 [ -e "$LOCK" ] && { fail "fichier de verrou résiduel $LOCK"; resid=1; }
-[ "$resid" -eq 0 ] && pass "aucun conteneur, réseau, fichier temporaire ou verrou résiduel"
+[ "$resid" -eq 0 ] && pass "aucun conteneur, réseau, journal, répertoire temporaire ou verrou résiduel"
+gso_assert_runtime_clean
 
 finish

@@ -20,8 +20,9 @@ DIR="$(cd "$(dirname "$0")" && pwd)"
 
 cd "$REPO_ROOT"
 
-tmp="$(mktemp -d)"
-trap 'rm -rf "$tmp"; rm -f "${XDG_RUNTIME_DIR:-${TMPDIR:-/tmp}}/grav-sites-ops/locks/grav-alpha.lock"' EXIT
+tmp="$(gso_mktemp_dir l5-restart-stop)"
+trap 'rm -rf "$tmp"' EXIT
+gso_isolate_runtime "$tmp"        # verrous deploy/restart/stop confines dans $tmp
 
 VAULT='vault_grav_sites:
   grav-alpha:
@@ -186,5 +187,8 @@ containers_after="$(docker ps -aq 2>/dev/null | sort || true)"
 [ "$containers_before" = "$containers_after" ] \
   && pass "aucun conteneur Docker créé, arrêté ou redémarré pendant les tests L5" \
   || fail "la liste des conteneurs a changé : $(comm -3 <(echo "$containers_before") <(echo "$containers_after"))"
+
+# verrous confinés dans $tmp : le dossier runtime réel est intact
+gso_assert_runtime_clean
 
 finish

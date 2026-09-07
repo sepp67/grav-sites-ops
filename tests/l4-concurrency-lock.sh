@@ -15,8 +15,9 @@ DIR="$(cd "$(dirname "$0")" && pwd)"
 
 cd "$REPO_ROOT"
 
-tmp="$(mktemp -d)"
-trap 'rm -rf "$tmp"; rm -f "${XDG_RUNTIME_DIR:-${TMPDIR:-/tmp}}/grav-sites-ops/locks/l4lock-"*.lock' EXIT
+tmp="$(gso_mktemp_dir l4-lock)"
+trap 'rm -rf "$tmp"' EXIT
+gso_isolate_runtime "$tmp"        # verrous de site-mutation.sh confines dans $tmp
 
 T="$tmp/tree"
 l4_tmptree l3-prod-ok "$T"
@@ -93,5 +94,7 @@ if ( cd "$T" && PATH="$tmp/fakebin:$PATH" bash scripts/deploy.sh grav-alpha -i /
 else
   pass "deploy.sh refuse tout argument autre que SITE"
 fi
+
+gso_assert_runtime_clean
 
 finish

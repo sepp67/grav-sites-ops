@@ -12,8 +12,9 @@ DIR="$(cd "$(dirname "$0")" && pwd)"
 
 cd "$REPO_ROOT"
 
-tmp="$(mktemp -d)"
+tmp="$(gso_mktemp_dir t16)"
 trap 'rm -rf "$tmp"' EXIT
+gso_isolate_runtime "$tmp"        # verrous de site-mutation.sh confines dans $tmp
 T="$tmp/tree"
 l4_tmptree l3-prod-ok "$T"          # registre = grav-alpha + grav-beta
 gso_spy_role_into "$T"
@@ -100,5 +101,7 @@ if git grep -qIE 'multi_instance|deux conteneurs réels|two real containers' -- 
 else
   pass "aucune preuve multi-instance réelle dans grav-sites-ops (déléguée au rôle, GSO-D07)"
 fi
+
+gso_assert_runtime_clean
 
 finish
