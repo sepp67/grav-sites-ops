@@ -1,8 +1,8 @@
 # grav-sites-ops — points d'entree
 #
-# Lots L0-L5. Installation des dependances, tests, controles locaux en
-# lecture seule (validate / preflight) et mutations d'UN site : deploy,
-# restart, stop. check / check-all seront ajoutes au lot L6.
+# Lots L0-L6. Installation des dependances, tests, controles locaux en
+# lecture seule (validate / preflight), mutations d'UN site (deploy,
+# restart, stop) et controle de derive LECTURE SEULE (check, check-all).
 #
 # SITE est transmis tel quel au selecteur, entre guillemets, sans
 # reinterpretation shell (GSO-REQ-084). L'inventaire est fixe par le depot
@@ -75,6 +75,14 @@ restart: ## Redemarre UN site sans changer sa reference desiree (GSO-REQ-088)
 .PHONY: stop
 stop: ## Arrete le conteneur d'UN site, sans rien supprimer ni retirer du parc (GSO-REQ-089)
 	bash scripts/stop-site.sh "$(SITE)"
+
+.PHONY: check
+check: ## Controle de derive d'UN site (lecture seule) : desire vs applique vs reel (GSO-REQ-118)
+	bash scripts/check-site.sh "$(SITE)"
+
+.PHONY: check-all
+check-all: ## Controle de derive de TOUT le parc actif (lecture seule, non mutant)
+	bash scripts/check-all.sh
 
 .PHONY: lint-registry
 lint-registry: ## Valide le registre d'exemple (validateur statique L1)

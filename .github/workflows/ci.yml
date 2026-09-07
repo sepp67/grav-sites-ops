@@ -92,6 +92,23 @@ jobs:
       - name: L5 — intentions fermées (statique)
         run: bash tests/l5-action-closed.sh
 
+  drift:
+    name: Contrôle de dérive — lecture seule (fausse CLI docker — 100 % reproductible)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Installer les outils + dépendances Ansible
+        run: |
+          pip install "ansible-core>=2.17"
+          ansible-galaxy install -r requirements.yml
+      - name: GSO-T19 — contrôle des trois états et classification de dérive
+        run: bash tests/gso-t19-drift-classification.sh
+      - name: GSO-T20 — check-all non mutant, sans invocation du rôle
+        run: bash tests/gso-t20-check-all-non-mutating.sh
+
   # GSO-T15 (déploiement fonctionnel avec conteneur réel) n'est PAS exécuté ici :
   # il exige une image grav-runtime déjà présente localement (aucun pull
   # implicite, aucun identifiant GHCR — GSO-REQ-108). C'est un test
