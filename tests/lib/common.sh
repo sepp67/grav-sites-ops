@@ -48,6 +48,49 @@ gso_spy_role_into() {
   cp -r "$REPO_ROOT/tests/lib/spy-role/sepp67.grav_site" "$1/roles/sepp67.grav_site"
 }
 
+# gso_fake_docker_into <destdir> : installe une FAUSSE CLI `docker` dans
+# <destdir>/fakebin/docker (à préfixer au PATH). Lecture seule, pilotée par
+# l'environnement — aucun vrai conteneur, aucun daemon Docker :
+#   FAKE_DOCKER_DIR=<dir>        -> `docker inspect <c>` rend <dir>/<c>.json
+#                                  (absent => "No such object", code 1, "[]")
+#   FAKE_DOCKER_UNAVAILABLE=1    -> "Cannot connect to the Docker daemon", code 1
+# Toute sous-commande susceptible de muter (run/rm/stop/start/restart/pull/
+# create/kill/prune) est REFUSÉE bruyamment (code 97) : un test qui la
+# déclencherait échoue au lieu de passer en silence.
+gso_fake_docker_into() {
+  local dest="$1"
+  mkdir -p "$dest/fakebin"
+  cat > "$dest/fakebin/docker" <<'SH'
+#!/usr/bin/env bash
+if [ "${FAKE_DOCKER_UNAVAILABLE:-0}" = 1 ]; then
+  echo "Cannot connect to the Docker daemon at unix:///var/run/docker.sock. Is the docker daemon running?" >&2
+  exit 1
+fi
+case "${1:-}" in
+  inspect)
+    shift
+    [ "${1:0:1}" = "-" ] && { shift; shift; }   # ignore --format ... (non utilisé ici)
+    f="${FAKE_DOCKER_DIR:-/nonexistent}/${1}.json"
+    if [ -f "$f" ]; then cat "$f"; exit 0; fi
+    echo "Error: No such object: ${1}" >&2
+    echo "[]"
+    exit 1
+    ;;
+  ps)
+    exit 0 ;;
+  run|rm|stop|start|restart|pull|create|kill|prune|exec|compose|network|volume|rmi|update|cp|commit|build|tag|push|load|save|import|export|rename|pause|unpause)
+    echo "FAKE-DOCKER-REFUS : sous-commande mutante '$*' interdite pendant un test de contrôle" >&2
+    exit 97
+    ;;
+  *)
+    echo "fake docker: sous-commande non gérée : $*" >&2
+    exit 2
+    ;;
+esac
+SH
+  chmod +x "$dest/fakebin/docker"
+}
+
 # gso_mktemp_dir <tag> : cree un repertoire temporaire au PREFIXE RECONNAISSABLE
 # (`gso-<tag>.`) et borne a la zone temporaire du systeme. A preferer a
 # `mktemp -d` nu, dont le prefixe `tmp.` est indistinguable et complique la
