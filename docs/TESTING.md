@@ -24,17 +24,25 @@ aucun identifiant. Exécutée par la CI (`.github/workflows/ci.yml`) et par
 | `GSO-T23`, `GSO-T24` | contrôles statiques (control-repository, chemins, secrets) |
 | `l4-concurrency-lock` | verrou de concurrence (**doublure de `ansible-playbook`**) |
 | `l4-ci-functional-contract` | garde-fou : la CI ne tire ni ne référence `GSO-T15` |
+| `l5-restart-stop` | `restart` / `stop` : intention → `grav_state`, 1 invocation, refus, verrou partagé, propagation des codes (**doublure de rôle**) |
+| `l5-action-closed` | garde-fou statique : intentions fermées, `grav_state` jamais fourni par l'opérateur, aucune orchestration destructive, aucun nouvel identifiant GSO-T |
 
-Toutes les preuves L4 « logiques » (traduction exacte, `name`+`content` sans
+Toutes les preuves L4–L5 « logiques » (traduction exacte, `name`+`content` sans
 `src`, tri-state, une seule invocation, second contrôle de cible, non-fuite,
-verrou) sont dans cette catégorie.
+verrou partagé, `restart`/`stop` fermés) sont dans cette catégorie.
+
+Les preuves L5 n'ont **pas** d'identifiant `GSO-Txx` : le préflight de
+construction ne prévoit **aucun** scénario `GSO-T` dédié à L5. Elles sont
+tracées comme preuves L5 non numérotées (`tests/l5-*.sh`).
 
 ## 2. Test d'acceptation fonctionnel local — `GSO-T15`
 
-`GSO-T15` exécute le **vrai** chemin opérateur (`scripts/deploy.sh` → sélecteur
-→ verrou → `deploy-site.yml` → assertions → second préflight structurel → vrai
-rôle `sepp67.grav_site v2.0.0`) et crée **un** conteneur `grav-runtime`
-**éphémère**, puis le détruit.
+`GSO-T15` exécute le **vrai** chemin opérateur (`scripts/deploy.sh` →
+`scripts/lib/site-mutation.sh` → sélecteur → verrou → `deploy-site.yml` →
+`_shared/mutate.yml` : assertions → second préflight structurel → traduction
+fermée → vrai rôle `sepp67.grav_site v2.0.0`) et crée **un** conteneur
+`grav-runtime` **éphémère**, puis le détruit. `restart` et `stop` partagent ce
+chemin ; L5 ne les exécute **jamais** sur un vrai conteneur.
 
 **Non exécuté par la CI standard** : il exige une image déjà présente
 localement, sans pull implicite ni identifiant GHCR (GSO-REQ-108).

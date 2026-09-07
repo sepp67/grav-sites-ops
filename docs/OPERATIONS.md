@@ -3,9 +3,9 @@
 Résumé normatif : contrat architectural `v0.5.0`, sections 8.5, 13 et 14
 (`docs/CONTRAT-ARCHITECTURAL.md`). En cas de divergence, le contrat fait foi.
 
-Livré par les **lots L3** (sélecteur fermé, préflight lecture seule) et **L4**
-(déploiement d'un site). Les opérations `restart` / `stop` seront ajoutées au
-lot L5, `check` / `check-all` au lot L6.
+Livré par les **lots L3** (sélecteur fermé, préflight lecture seule), **L4**
+(déploiement d'un site) et **L5** (redémarrage, arrêt). `check` / `check-all`
+seront ajoutés au lot L6.
 
 ## Interface opérateur
 
@@ -14,26 +14,33 @@ lot L5, `check` / `check-all` au lot L6.
 | `make validate SITE=<hôte>` | sélecteur fermé : valide que `SITE` désigne un hôte actif unique | aucune |
 | `make preflight SITE=<hôte>` | sélecteur + cohérence inventaire ↔ registre ↔ vault | aucune |
 | `make deploy SITE=<hôte>` | **déploie / actualise** l'instance de `<hôte>` selon le registre | oui (via le rôle) |
-| `scripts/validate-target.sh <hôte>` / `scripts/preflight.sh <hôte>` / `scripts/deploy.sh <hôte>` | idem, sans `make` | — |
+| `make restart SITE=<hôte>` | **redémarre** l'instance **sans** changer sa référence désirée (GSO-REQ-088) | oui (via le rôle) |
+| `make stop SITE=<hôte>` | **arrête** le conteneur, sans rien supprimer ni retirer du parc (GSO-REQ-089) | oui (via le rôle) |
+| `scripts/{validate-target,preflight,deploy,restart-site,stop-site}.sh <hôte>` | idem, sans `make` | — |
 
-Toutes les cibles n'acceptent que `SITE`.
+Toutes les cibles n'acceptent que `SITE`. **`grav_state` n'est jamais fourni
+par l'opérateur** : l'action est déterminée par le point d'entrée invoqué
+(`deploy` → état du registre ; `restart` → `restarted` ; `stop` → `stopped`).
 
-## Le chemin de déploiement (lot L4)
+## Les trois intentions de mutation (lots L4–L5)
 
-`make deploy SITE=<hôte>` → `scripts/deploy.sh` exécute **strictement dans cet
-ordre** :
+`deploy`, `restart` et `stop` partagent **le même chemin** et **le même
+verrou** (`scripts/lib/site-mutation.sh`). Elles ne diffèrent que par le
+playbook dédié invoqué et par l'état traduit. `make <intention> SITE=<hôte>`
+→ `scripts/<wrapper>.sh` exécute **strictement dans cet ordre** :
 
 ```
 SITE littéral
   └─▶ 1. préflight local / sélecteur    scripts/validate-target.sh (sélecteur fermé L3)
   └─▶ 2. verrou de concurrence          flock par site (GSO-REQ-096)
-  └─▶ 3. ansible-playbook deploy-site.yml --limit <hôte> :
+  └─▶ 3. ansible-playbook <intention>-site.yml --limit <hôte>  (deploy- / restart- / stop-),
+          play qui fixe _gso_intent, puis _shared/mutate.yml :
           ├─ 3a. assertions du playbook       --limit == inventory_hostname,
           │        un seul hôte, jamais all/groupe/multiple (GSO-REQ-016/017/057/082/094)
           ├─ 3b. second préflight structurel  gso_validate.py preflight <hôte>
           │        (registre + vault + bootstrap tri-state + secrets, no_log — GSO-REQ-204)
-          ├─ 3c. traduction                   grav_sites[hôte] + vault_grav_sites[hôte]
-          │        → grav_* (exacte, aucune valeur globale, aucun repli)
+          ├─ 3c. traduction fermée            _gso_intent + grav_sites[hôte] + vault_grav_sites[hôte]
+          │        → grav_* + grav_state (exacte, aucune valeur globale, aucun repli)
           └─▶ 4. include_role: sepp67.grav_site   — exactement une fois (GSO-REQ-087)
 ```
 
@@ -124,25 +131,38 @@ n'ouvre aucun vault chiffré, ne contacte aucune machine, ne modifie aucun
 fichier. Il **échoue fermé** : toute ambiguïté ou incohérence → code ≠ 0,
 avant toute opération mutante (GSO-REQ-026, 038, 094, 095, 107).
 
-## Action (lot L4)
+## Action (lots L4–L5)
 
 Le sélecteur L3 est **agnostique de l'action** : il valide une identité de
 cible, pas ce qu'on va en faire. La liste **fermée** des actions opérateur
 normatives est `deploy`, `restart`, `stop`, `check` (contrat §13.1 ; constante
-`NORMATIVE_ACTIONS` dans `scripts/lib/gso_validate.py`). À partir du lot L4,
-toute action fournie par l'opérateur sera validée contre cette liste fermée
-avant toute mutation ; aucune option d'action n'est exposée avant.
+`NORMATIVE_ACTIONS` dans `scripts/lib/gso_validate.py`). L'action n'est **jamais
+une option** : elle est déterminée par le point d'entrée invoqué
+(`scripts/deploy.sh`, `scripts/restart-site.sh`, `scripts/stop-site.sh`), qui
+fixe le playbook dédié et, par lui, l'intention `_gso_intent`. L'opérateur ne
+peut pas fournir `grav_state`, `--limit`, `-e`, ni aucune option d'inventaire.
+
+`grav_state` est traduit **depuis l'intention seule** (`playbooks/_shared/translate.yml`) :
+`restart` → `restarted`, `stop` → `stopped`, `deploy` → l'état du registre. Le
+`restart` ne change **ni** version **ni** digest **ni** aucun fichier
+persistant (GSO-REQ-088) ; il n'est **pas** un redéploiement. Le `stop`
+n'entraîne **aucune** suppression de conteneur, volume, donnée persistante ou
+fichier de déploiement (GSO-REQ-089).
 
 Un site à l'état désiré `stopped` reste un **projet actif** du registre : il
-est une cible d'identité légitime. Ce que chaque action autorise ou interdit
-sur un site `stopped` sera défini par les playbooks du lot L4.
+est une cible d'identité légitime pour les trois intentions.
 
 ## Concurrence
 
-`grav-sites-ops` n'a, à ce stade, aucune opération mutante. La règle « une
-seule mutation à la fois sur un même site » (GSO-REQ-096, contrat §14.3)
-s'appliquera aux playbooks introduits à partir du lot L4 ; le sélecteur et le
-préflight, en lecture seule, peuvent être exécutés sans restriction.
+La règle « une seule mutation à la fois sur un même site » (GSO-REQ-096,
+contrat §14.3) est appliquée par un **verrou `flock` par site**
+(`scripts/lib/site-mutation.sh`), acquis avant toute invocation du rôle et
+**partagé** par `deploy`, `restart` et `stop` : le même fichier
+`${XDG_RUNTIME_DIR:-…}/grav-sites-ops/locks/<hôte>.lock` sérialise les trois
+intentions, ce qui empêche deux mutations concurrentes sur un même site. Une
+tentative concurrente échoue proprement (**code 75**) sans lancer le rôle. Le
+noyau libère le descripteur en succès, échec ou interruption. Le sélecteur et
+le préflight, en lecture seule, restent exécutables sans restriction.
 
 ## Ce que le sélecteur / préflight ne font jamais
 

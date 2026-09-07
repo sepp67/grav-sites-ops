@@ -11,6 +11,41 @@ et le versionnement sémantique.
 
 ## [Non publié]
 
+### Ajouté — lot L5 (redémarrage et arrêt d'un site)
+
+- `playbooks/restart-site.yml` + `playbooks/stop-site.yml` : plays fins qui
+  fixent `_gso_intent` (`restart` / `stop`) puis empruntent la séquence
+  commune `playbooks/_shared/mutate.yml` (assertions `--limit` → préflight
+  structurel → traduction fermée → **une seule** invocation de
+  `sepp67.grav_site`). Chaque intention a un playbook **dédié**
+  (GSO-REQ-081/082/087/088/089).
+- `playbooks/_shared/translate.yml` : `grav_state` **dérivé de la seule
+  intention** — `restart` → `restarted`, `stop` → `stopped`, `deploy` → état
+  du registre ; `_gso_intent` contraint à `{deploy, restart, stop}` par
+  assertion. L'opérateur ne fournit **jamais** `grav_state`.
+- `scripts/lib/site-mutation.sh` : chemin opérateur partagé (playbook validé
+  contre une liste fermée → sélecteur `validate-target.sh` → **verrou `flock`
+  par site, identique à `deploy`** → `ansible-playbook --limit`). Codes du
+  sélecteur / verrou (75) / playbook / rôle propagés sans masquage.
+- `scripts/restart-site.sh`, `scripts/stop-site.sh` : wrappers fins n'acceptant
+  que `SITE`. `scripts/deploy.sh` réécrit sur le même chemin partagé.
+- `Makefile` : cibles `make restart SITE=` / `make stop SITE=`.
+- Tests (doublure de rôle, 100 % reproductibles, **aucun conteneur**) :
+  `tests/l5-restart-stop.sh` (intention → `grav_state`, 1 invocation, `restart`
+  n'altère ni version ni digest, `stop` sans orchestration destructive, refus
+  sans/avec argument surnuméraire/cible invalide/absente/retirée/incohérente
+  sans invocation du rôle, verrou partagé, échec concurrent code 75,
+  libération du verrou après succès et échec, non-fuite de secret, fixtures
+  inchangées), `tests/l5-action-closed.sh` (garde-fou statique des intentions
+  fermées). Preuves L5 **non numérotées** — le préflight ne prévoit aucun
+  `GSO-Txx` dédié à L5.
+- CI : job `translate` étendu à `l5-restart-stop` et `l5-action-closed`.
+
+`restart` n'est **pas** un redéploiement ni une mise à jour (GSO-REQ-088).
+`stop` n'entraîne **aucune** suppression de conteneur, volume, donnée
+persistante ou fichier de déploiement (GSO-REQ-089). Aucune action implicite,
+combinée ou globale ; `SITE` reste le seul argument opérateur.
+
 ### Ajouté — lot L4 (déploiement d'un site)
 
 - `playbooks/deploy-site.yml` + `playbooks/_shared/translate.yml` : assertion
