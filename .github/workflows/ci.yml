@@ -68,7 +68,7 @@ jobs:
         run: bash tests/gso-t03-role-install.sh
 
   translate:
-    name: Traduction, isolation et verrou (doublures — 100 % reproductible)
+    name: Traduction, actions, isolation et verrou (doublures — 100 % reproductible)
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -87,6 +87,10 @@ jobs:
         run: bash tests/gso-t16-two-sites-isolation.sh
       - name: L4 — verrou de concurrence
         run: bash tests/l4-concurrency-lock.sh
+      - name: L5 — restart / stop (doublure)
+        run: bash tests/l5-restart-stop.sh
+      - name: L5 — intentions fermées (statique)
+        run: bash tests/l5-action-closed.sh
 
   # GSO-T15 (déploiement fonctionnel avec conteneur réel) n'est PAS exécuté ici :
   # il exige une image grav-runtime déjà présente localement (aucun pull

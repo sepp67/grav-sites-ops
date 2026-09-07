@@ -1,8 +1,8 @@
 # grav-sites-ops — points d'entree
 #
-# Lots L0-L4. Installation des dependances, tests, controles locaux en
-# lecture seule (validate / preflight) et deploiement d'UN site (deploy).
-# restart / stop seront ajoutes au lot L5.
+# Lots L0-L5. Installation des dependances, tests, controles locaux en
+# lecture seule (validate / preflight) et mutations d'UN site : deploy,
+# restart, stop. check / check-all seront ajoutes au lot L6.
 #
 # SITE est transmis tel quel au selecteur, entre guillemets, sans
 # reinterpretation shell (GSO-REQ-084). L'inventaire est fixe par le depot
@@ -67,6 +67,14 @@ preflight: ## Preflight operateur : selecteur + coherence registre/vault (lectur
 .PHONY: deploy
 deploy: ## Deploie/actualise UN site : selecteur -> verrou -> deploy-site.yml -> role
 	bash scripts/deploy.sh "$(SITE)"
+
+.PHONY: restart
+restart: ## Redemarre UN site sans changer sa reference desiree (GSO-REQ-088)
+	bash scripts/restart-site.sh "$(SITE)"
+
+.PHONY: stop
+stop: ## Arrete le conteneur d'UN site, sans rien supprimer ni retirer du parc (GSO-REQ-089)
+	bash scripts/stop-site.sh "$(SITE)"
 
 .PHONY: lint-registry
 lint-registry: ## Valide le registre d'exemple (validateur statique L1)
