@@ -13,15 +13,17 @@ d'une instance Grav : ce mécanisme appartient exclusivement au rôle.
 
 **Construction en cours — lots L0 (harnais), L1 (données déclaratives),
 L2 (modèle de vault), L3 (sélecteur fermé + préflight), L4 (déploiement d'un
-site), L5 (redémarrage et arrêt d'un site).**
+site), L5 (redémarrage et arrêt d'un site), L6 (contrôle de dérive, lecture
+seule).**
 
 Le dépôt reste **non opérationnel par défaut** : ni inventaire de production,
 ni vault opérationnel. Les seules données versionnées sont l'inventaire, le
 registre et le modèle de vault d'**exemple** (`inventories/example/…`),
-entièrement synthétiques. `make validate` / `make preflight` sont en lecture
-seule ; `make deploy` / `make restart` / `make stop` `SITE=<hôte>` exécutent le
-même chemin complet sélecteur → verrou → préflight → rôle, mais **échouent tant
-qu'aucun `inventories/production/hosts.yml` n'est fourni** (hors dépôt).
+entièrement synthétiques. `make validate` / `make preflight` / `make check` /
+`make check-all` sont en lecture seule ; `make deploy` / `make restart` /
+`make stop` `SITE=<hôte>` exécutent le même chemin complet sélecteur → verrou →
+préflight → rôle. Toutes **échouent tant qu'aucun
+`inventories/production/hosts.yml` n'est fourni** (hors dépôt).
 
 ## Source normative
 
@@ -59,6 +61,8 @@ Toutes les commandes ci-dessous sont couvertes par un test (`make test`).
 | `make deploy SITE=<hôte>` | déploie / actualise l'instance d'un site (sélecteur → verrou → rôle) |
 | `make restart SITE=<hôte>` | redémarre l'instance sans changer sa référence désirée (GSO-REQ-088) |
 | `make stop SITE=<hôte>` | arrête le conteneur d'un site, sans rien supprimer ni retirer du parc (GSO-REQ-089) |
+| `make check SITE=<hôte>` | contrôle de dérive d'un site : désiré vs appliqué vs réel, classé (lecture seule) |
+| `make check-all` | contrôle de dérive de tout le parc actif (lecture seule, non mutant) |
 | `make lint-registry` | valide le registre d'exemple (même validateur que `GSO-T06`) |
 | `make lint-vault` | valide le modèle de vault d'exemple (même validateur que `GSO-T07`) |
 | `make clean` | supprime les artefacts locaux non suivis |
@@ -71,9 +75,9 @@ requirements.yml     unique source de vérité de la version du rôle (tag épin
 Makefile             points d'entrée documentés
 inventories/example/ inventaire + registre grav_sites (L1) + vault.yml.example (L2)
 inventories/production/  fourni hors dépôt ; jamais suivi par Git
-playbooks/           deploy/restart/stop-site.yml + _shared/ (séquence commune, traduction fermée)
+playbooks/           deploy/restart/stop-site.yml (mutations) + check-site/check-all.yml (contrôle L6) + _shared/
 registry/            historiques retired-sites / reactivated-sites (lot L8)
-scripts/             sélecteur + préflight (L3) ; deploy/restart/stop-site.sh + lib/site-mutation.sh (chemin + verrou partagés) ; lib/gso_validate.py = validateur partagé
+scripts/             sélecteur + préflight (L3) ; deploy/restart/stop-site.sh + lib/site-mutation.sh (mutations, verrou) ; check-site/check-all.sh + lib/site-check.sh + lib/gso_classify.py (contrôle L6, sans verrou) ; lib/gso_validate.py = validateur partagé
 tests/               scripts GSO-T*, lanceur, helpers (tests/lib/), fixtures
 docs/                architecture, contrat, schémas registre/vault, exploitation, tests, versionnement, gouvernance
 .github/workflows/   CI (jobs statiques)

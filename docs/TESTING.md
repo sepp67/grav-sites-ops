@@ -26,10 +26,18 @@ aucun identifiant. Exécutée par la CI (`.github/workflows/ci.yml`) et par
 | `l4-ci-functional-contract` | garde-fou : la CI ne tire ni ne référence `GSO-T15` |
 | `l5-restart-stop` | `restart` / `stop` : intention → `grav_state`, 1 invocation, refus, verrou partagé, propagation des codes (**doublure de rôle**) |
 | `l5-action-closed` | garde-fou statique : intentions fermées, `grav_state` jamais fourni par l'opérateur, aucune orchestration destructive, aucun nouvel identifiant GSO-T |
+| `GSO-T19` | contrôle des trois états + classification de dérive (8 catégories §16.5), non-mutation, non-fuite (**fausse CLI `docker`**) |
+| `GSO-T20` | `check-all` non mutant, sans `include_role` du rôle, cohérence déclarative sans VM, verdict de parc (**fausse CLI `docker`**) |
 
-Toutes les preuves L4–L5 « logiques » (traduction exacte, `name`+`content` sans
+Toutes les preuves L4–L6 « logiques » (traduction exacte, `name`+`content` sans
 `src`, tri-state, une seule invocation, second contrôle de cible, non-fuite,
-verrou partagé, `restart`/`stop` fermés) sont dans cette catégorie.
+verrou partagé, `restart`/`stop` fermés, contrôle de dérive lecture seule) sont
+dans cette catégorie.
+
+Le contrôle de dérive (L6) n'exécute **jamais** de vrai `docker` : `GSO-T19` et
+`GSO-T20` utilisent une fausse CLI `docker` en lecture seule, qui **refuse
+bruyamment** toute sous-commande mutante, et des `.deployed_state.yml`
+synthétiques. Aucun conteneur, aucune connexion.
 
 Les preuves L5 n'ont **pas** d'identifiant `GSO-Txx` : le préflight de
 construction ne prévoit **aucun** scénario `GSO-T` dédié à L5. Elles sont

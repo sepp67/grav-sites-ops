@@ -11,6 +11,50 @@ et le versionnement sémantique.
 
 ## [Non publié]
 
+### Ajouté — lot L6 (contrôle de dérive, lecture seule)
+
+- `playbooks/check-site.yml` + `playbooks/check-all.yml` + séquence commune
+  `playbooks/_shared/observe.yml` : comparaison des **trois niveaux d'état**
+  (désiré / appliqué / réel) et **classification** de la dérive
+  (GSO-REQ-118). **Strictement non mutant** : `gather_facts: false`
+  (GSO-REQ-124), aucun `include_role`/`import_role` de `sepp67.grav_site`,
+  collecte en lecture seule uniquement — `slurp` de `.deployed_state.yml`
+  (jamais modifié — GSO-REQ-119), `docker inspect`, `uri` GET, `stat` de
+  `.last_failure.log` (présence + horodatage, **jamais** le contenu —
+  GSO-REQ-123). Aucune remédiation automatique, aucun appel à
+  `deploy-site.yml` (GSO-REQ-090/122).
+- `scripts/lib/gso_classify.py` : classificateur **pur** des 8 catégories du
+  contrat §16.5 (`IN_SYNC`, `NOT_DEPLOYED`, `REFERENCE_DRIFT`, `CONFIG_DRIFT`,
+  `STOPPED`, `UNHEALTHY`, `UNREACHABLE`, `UNKNOWN`). `STOPPED` est relatif à
+  l'état **désiré** : `stopped` voulu + conteneur arrêté ⇒ `IN_SYNC`
+  (GSO-REQ-121). Code de sortie toujours 0 (c'est le playbook qui décide).
+- `scripts/lib/site-check.sh` + `scripts/check-site.sh` + `scripts/check-all.sh` :
+  chemin opérateur de contrôle **sans verrou de mutation** (un contrôle ne
+  bloque jamais un déploiement) ; `check-site` valide `SITE` par le sélecteur
+  fermé L3 ; `check-all` vérifie d'abord la **cohérence déclarative** du parc
+  **sans VM** (GSO-REQ-125). Aucune bascule possible vers une mutation
+  (GSO-REQ-104).
+- `Makefile` : cibles `make check SITE=` / `make check-all`.
+- Tests (fausse CLI `docker` en lecture seule, 100 % reproductibles) :
+  `tests/gso-t19-drift-classification.sh` (les 8 catégories ; trois niveaux
+  distingués ; conteneur arrêté → `STOPPED` ; `stopped` désiré → jamais
+  `STOPPED` ; fichier illisible / docker indisponible → `UNKNOWN` ; VM
+  simulée injoignable → `UNREACHABLE` ; `.deployed_state.yml` inchangé ;
+  aucune sous-commande `docker` mutante ; rôle jamais invoqué ; non-fuite ;
+  codes stables), `tests/gso-t20-check-all-non-mutating.sh` (gardes statiques
+  `check-site.yml`/`check-all.yml` sans `include_role` ; parcours du parc ;
+  registre incohérent → échec avant parcours, sans VM ; verdict de parc ;
+  non-mutation).
+- `.github/workflows/ci.yml` : job `drift` (GSO-T19 + GSO-T20, fausse CLI
+  `docker`, 100 % reproductible).
+- Doublure de tests : helper `gso_fake_docker_into` (fausse CLI `docker`
+  lecture seule qui **refuse** toute sous-commande mutante).
+
+Codes de sortie du contrôle : le contrat (GSO-REQ-093) impose « code non nul
+si l'intention n'est pas atteinte » sans taxonomie numérique ; convention
+retenue **`0` = `IN_SYNC`**, `≠ 0` sinon, la **catégorie §16.5** (sans secret)
+portant la distinction fine.
+
 ### Ajouté — lot L5 (redémarrage et arrêt d'un site)
 
 - `playbooks/restart-site.yml` + `playbooks/stop-site.yml` : plays fins qui

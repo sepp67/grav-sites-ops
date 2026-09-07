@@ -4,8 +4,8 @@ Résumé normatif : contrat architectural `v0.5.0`, sections 8.5, 13 et 14
 (`docs/CONTRAT-ARCHITECTURAL.md`). En cas de divergence, le contrat fait foi.
 
 Livré par les **lots L3** (sélecteur fermé, préflight lecture seule), **L4**
-(déploiement d'un site) et **L5** (redémarrage, arrêt). `check` / `check-all`
-seront ajoutés au lot L6.
+(déploiement d'un site), **L5** (redémarrage, arrêt) et **L6** (contrôle de
+dérive, `check` / `check-all`, lecture seule).
 
 ## Interface opérateur
 
@@ -16,11 +16,15 @@ seront ajoutés au lot L6.
 | `make deploy SITE=<hôte>` | **déploie / actualise** l'instance de `<hôte>` selon le registre | oui (via le rôle) |
 | `make restart SITE=<hôte>` | **redémarre** l'instance **sans** changer sa référence désirée (GSO-REQ-088) | oui (via le rôle) |
 | `make stop SITE=<hôte>` | **arrête** le conteneur, sans rien supprimer ni retirer du parc (GSO-REQ-089) | oui (via le rôle) |
-| `scripts/{validate-target,preflight,deploy,restart-site,stop-site}.sh <hôte>` | idem, sans `make` | — |
+| `make check SITE=<hôte>` | **compare** désiré / appliqué / réel de `<hôte>` et **classe** la dérive (§16.5) | **aucune** (lecture seule) |
+| `make check-all` | même contrôle sur **tout le parc actif** (`grav_servers`) | **aucune** (lecture seule) |
+| `scripts/{validate-target,preflight,deploy,restart-site,stop-site,check-site}.sh <hôte>`, `scripts/check-all.sh` | idem, sans `make` | — |
 
-Toutes les cibles n'acceptent que `SITE`. **`grav_state` n'est jamais fourni
-par l'opérateur** : l'action est déterminée par le point d'entrée invoqué
-(`deploy` → état du registre ; `restart` → `restarted` ; `stop` → `stopped`).
+Les cibles ciblées n'acceptent que `SITE` ; `check-all` n'accepte **aucun**
+argument. **`grav_state` n'est jamais fourni par l'opérateur** : l'action est
+déterminée par le point d'entrée invoqué (`deploy` → état du registre ;
+`restart` → `restarted` ; `stop` → `stopped`). Le contrôle ne fournit ni ne
+modifie aucun état.
 
 ## Les trois intentions de mutation (lots L4–L5)
 
@@ -131,16 +135,17 @@ n'ouvre aucun vault chiffré, ne contacte aucune machine, ne modifie aucun
 fichier. Il **échoue fermé** : toute ambiguïté ou incohérence → code ≠ 0,
 avant toute opération mutante (GSO-REQ-026, 038, 094, 095, 107).
 
-## Action (lots L4–L5)
+## Action (lots L4–L6)
 
 Le sélecteur L3 est **agnostique de l'action** : il valide une identité de
 cible, pas ce qu'on va en faire. La liste **fermée** des actions opérateur
 normatives est `deploy`, `restart`, `stop`, `check` (contrat §13.1 ; constante
 `NORMATIVE_ACTIONS` dans `scripts/lib/gso_validate.py`). L'action n'est **jamais
 une option** : elle est déterminée par le point d'entrée invoqué
-(`scripts/deploy.sh`, `scripts/restart-site.sh`, `scripts/stop-site.sh`), qui
-fixe le playbook dédié et, par lui, l'intention `_gso_intent`. L'opérateur ne
-peut pas fournir `grav_state`, `--limit`, `-e`, ni aucune option d'inventaire.
+(`scripts/deploy.sh`, `scripts/restart-site.sh`, `scripts/stop-site.sh`,
+`scripts/check-site.sh`, `scripts/check-all.sh`), qui fixe le playbook dédié.
+L'opérateur ne peut pas fournir `grav_state`, `--limit`, `-e`, ni aucune option
+d'inventaire.
 
 `grav_state` est traduit **depuis l'intention seule** (`playbooks/_shared/translate.yml`) :
 `restart` → `restarted`, `stop` → `stopped`, `deploy` → l'état du registre. Le
@@ -152,6 +157,43 @@ fichier de déploiement (GSO-REQ-089).
 Un site à l'état désiré `stopped` reste un **projet actif** du registre : il
 est une cible d'identité légitime pour les trois intentions.
 
+## Contrôle de dérive (lot L6)
+
+`check` et `check-all` sont **strictement en lecture seule** (contrat §13.7,
+§16 ; GSO-REQ-090/119/122). Ils comparent les **trois niveaux d'état** et
+**classent** l'écart, sans jamais corriger.
+
+| Niveau | Source | Collecte |
+|---|---|---|
+| désiré | `grav_sites[<hôte>]` au SHA Git courant | variables d'inventaire (aucun secret — GSO-REQ-123) |
+| appliqué | `.deployed_state.yml` produit par le rôle | `slurp` (lecture — GSO-REQ-119) |
+| réel | conteneur + endpoint | `docker inspect` (lecture), `uri` GET, `stat` de `.last_failure.log` |
+
+Chemin : `SITE fermé → sélecteur fermé L3 → assertion cible unique →
+collecte lecture seule → classification (fonction pure `scripts/lib/gso_classify.py`)
+→ verdict`. **Aucun verrou de mutation** n'est pris : un contrôle ne bloque
+jamais un déploiement. Aucun `include_role`/`import_role` du rôle (le rôle
+réécrit `.deployed_state.yml` à chaque invocation — proscrit ici).
+
+**Catégories** (contrat §16.5) : `IN_SYNC`, `NOT_DEPLOYED`, `REFERENCE_DRIFT`,
+`CONFIG_DRIFT`, `STOPPED`, `UNHEALTHY`, `UNREACHABLE`, `UNKNOWN`. `STOPPED` est
+relatif à l'**état désiré** : un site voulu `stopped` et effectivement arrêté
+est `IN_SYNC`, jamais `STOPPED` (GSO-REQ-121).
+
+**Codes de sortie** : le contrat (GSO-REQ-093) impose « code non nul si
+l'intention n'est pas atteinte » sans fixer de taxonomie numérique. Convention
+retenue : **`0` = `IN_SYNC`** (site, ou parc entier) ; **`≠ 0`** sinon — refus
+du sélecteur ou du validateur de registre (codes L3, propagés tels quels) pour
+une cible absente / retirée / ambiguë ou un registre incohérent ; sinon échec
+de play Ansible pour une dérive détectée ou un état indéterminable. La
+**catégorie** §16.5 (affichée, sans secret) porte la distinction fine.
+
+`check-all` vérifie d'abord la **cohérence déclarative** du parc (hôte sans
+site, site sans hôte, doublon, actif+retiré) **sans connexion aux VM**
+(GSO-REQ-125) : un registre incohérent le fait échouer avant tout parcours.
+Un hôte injoignable n'interrompt pas le parcours : il est classé `UNREACHABLE`
+et le parc ressort non conforme.
+
 ## Concurrence
 
 La règle « une seule mutation à la fois sur un même site » (GSO-REQ-096,
@@ -161,8 +203,9 @@ contrat §14.3) est appliquée par un **verrou `flock` par site**
 `${XDG_RUNTIME_DIR:-…}/grav-sites-ops/locks/<hôte>.lock` sérialise les trois
 intentions, ce qui empêche deux mutations concurrentes sur un même site. Une
 tentative concurrente échoue proprement (**code 75**) sans lancer le rôle. Le
-noyau libère le descripteur en succès, échec ou interruption. Le sélecteur et
-le préflight, en lecture seule, restent exécutables sans restriction.
+noyau libère le descripteur en succès, échec ou interruption. Le sélecteur, le
+préflight et le **contrôle de dérive** (`check` / `check-all`), en lecture
+seule, restent exécutables sans restriction et **ne prennent aucun verrou**.
 
 ## Ce que le sélecteur / préflight ne font jamais
 
