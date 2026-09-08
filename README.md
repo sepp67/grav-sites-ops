@@ -16,7 +16,7 @@ L2 (modèle de vault), L3 (sélecteur fermé + préflight), L4 (déploiement d'u
 site), L5 (redémarrage et arrêt d'un site), L6 (contrôle de dérive, lecture
 seule), L7 (mise à jour et rollback déclaratifs, gardes de persistance),
 L8 (cycle de vie documentaire : retrait, réactivation, validateur lecture
-seule).**
+seule), L9 (migration documentaire site par site depuis l'ancien profil).**
 
 Le dépôt reste **non opérationnel par défaut** : ni inventaire de production,
 ni vault opérationnel. Les seules données versionnées sont l'inventaire, le
@@ -82,7 +82,7 @@ playbooks/           deploy/restart/stop-site.yml (mutations) + check-site/check
 registry/            retired-sites.yml + reactivated-sites.yml (documentaires L8, hors group_vars, jamais auto-chargés)
 scripts/             sélecteur + préflight (L3) ; deploy/restart/stop-site.sh + lib/site-mutation.sh (mutations, verrou) ; check-site/check-all.sh + lib/site-check.sh + lib/gso_classify.py (contrôle L6, sans verrou) ; lib/gso_validate.py = validateur partagé ; lib/gso_lifecycle.py = validateur cycle de vie L8 (lecture seule)
 tests/               scripts GSO-T*, lanceur, helpers (tests/lib/), fixtures
-docs/                architecture, contrat, schémas registre/vault, exploitation, tests, versionnement, gouvernance
+docs/                architecture, contrat, schémas registre/vault/cycle de vie, exploitation, migration (L9), tests, versionnement, gouvernance
 .github/workflows/   CI (jobs statiques)
 ```
 

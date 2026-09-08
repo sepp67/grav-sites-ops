@@ -34,6 +34,7 @@ aucun identifiant. Exécutée par la CI (`.github/workflows/ci.yml`) et par
 | `GSO-T21` | retrait déclaré sans tâche destructive : aucun playbook / script / cible de transformation, aucun appel d'hyperviseur, validateur read-only, transformation avant→après cohérente, données persistantes conservées (**fixtures synthétiques**) |
 | `GSO-T22` | registres actif / retiré strictement disjoints y compris après réactivation : disjonction stricte, transformation de réactivation, **append-only inter-version** (9 cas : inchangé / ajout en fin / nouvelle clé acceptés ; suppression / modification / inversion / insertion / clé supprimée / remplacement refusés) (**fixtures synthétiques**) |
 | `l8-history-append-only` | preuve **inter-version** : `scripts/lifecycle-history-check.sh` parcourt l'historique Git de `registry/reactivated-sites.yml` ; accepte l'historique réel + une transition d'ajout ; refuse réécriture / suppression ; **refuse explicitement un dépôt superficiel** ; tolère le commit initial |
+| `l9-migration-doc-guard` | garde-fou de la migration **documentaire** : toutes les étapes obligatoires présentes dans `docs/MIGRATION.md` ; sauvegarde vault décrite avant transformation ; cartographie exhaustive + champ non mappé → décision humaine ; chemins structurants ; retour arrière non destructif ; **aucun** playbook / script / cible de migration ; **aucune** lecture de l'ancien dépôt local ; la cible synthétique valide contre `gso_validate.py registry` / `vault` (**fixtures synthétiques ancien → nouveau**) |
 
 Toutes les preuves L4–L8 « logiques » (traduction exacte, `name`+`content` sans
 `src`, tri-state, une seule invocation, second contrôle de cible, non-fuite,
@@ -60,12 +61,14 @@ chemins persistants. Le journal append-only produit par la doublure sert
 `.deployed_state.yml` / `deployed_versions.log` reste celle de
 `sepp67.grav_site` (vérifiée par son propre contrat et par `GSO-T15`).
 
-Les preuves L5, le garde `l7-persistence-guard` et
-`l8-history-append-only` n'ont **pas** d'identifiant `GSO-Txx` : le préflight
+Les preuves L5, le garde `l7-persistence-guard`, `l8-history-append-only` et
+`l9-migration-doc-guard` n'ont **pas** d'identifiant `GSO-Txx` : le préflight
 ne prévoit de scénario `GSO-T` dédié ni pour L5, ni pour le garde de
 persistance, ni pour la preuve inter-version (les deux `GSO-T` de L8 sont
-`GSO-T21` / `GSO-T22`). Elles sont tracées comme preuves non numérotées
-(`tests/l5-*.sh`, `tests/l7-*.sh`, `tests/l8-*.sh`).
+`GSO-T21` / `GSO-T22`), ni pour **L9** (§6 : *« preuve documentaire +
+réutilisation de GSO-T07/T13/T15 ; aucun `GSO-T*` supplémentaire, aucun
+`GSO-T25` »*). Elles sont tracées comme preuves non numérotées
+(`tests/l5-*.sh`, `tests/l7-*.sh`, `tests/l8-*.sh`, `tests/l9-*.sh`).
 
 ## 2. Test d'acceptation fonctionnel local — `GSO-T15`
 

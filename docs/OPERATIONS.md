@@ -6,8 +6,10 @@ Résumé normatif : contrat architectural `v0.5.0`, sections 8.5, 13 et 14
 Livré par les **lots L3** (sélecteur fermé, préflight lecture seule), **L4**
 (déploiement d'un site), **L5** (redémarrage, arrêt), **L6** (contrôle de
 dérive, `check` / `check-all`, lecture seule), **L7** (procédures
-déclaratives de mise à jour et de rollback, gardes de persistance) et **L8**
-(cycle de vie documentaire : retrait, réactivation, validateur lecture seule).
+déclaratives de mise à jour et de rollback, gardes de persistance), **L8**
+(cycle de vie documentaire : retrait, réactivation, validateur lecture seule)
+et **L9** (migration documentaire site par site — voir
+[`MIGRATION.md`](MIGRATION.md)).
 
 ## Interface opérateur
 

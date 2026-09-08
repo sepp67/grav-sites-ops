@@ -11,6 +11,45 @@ et le versionnement sémantique.
 
 ## [Non publié]
 
+### Ajouté — lot L9 (migration documentaire depuis l'ancien profil)
+
+- `docs/MIGRATION.md` : procédure **manuelle**, **site par site** (GSO-REQ-167),
+  depuis l'ancien profil `ansible-role-grav-site`
+  (`inventories/production/group_vars/grav_servers/`) vers le schéma de
+  `grav-sites-ops`. Couvre : précondition harnais vert (GSO-REQ-163) ;
+  diagnostic de l'existant sans divulgation (GSO-REQ-162) ; **sauvegarde
+  externe vérifiée du vault avant toute transformation** (GSO-REQ-070/160/161,
+  contrat §20.3 — chemin hors dépôt, permissions restrictives, somme de
+  contrôle avant/après, `ansible-vault view` sans afficher, conservation
+  séparée, exclusion Git, arrêt si échec) ; **cartographie explicite** de
+  chaque champ ancien → nouveau, indirections `{{ vault_* }}` résolues, secrets
+  au format `name` + `content` (GSO-REQ-133/164) ; **champ non mappé →
+  décision humaine documentée** ; protection des **six chemins structurants** ;
+  création + vérification du nouveau vault sans export en clair (GSO-REQ-165/166) ;
+  déploiement de validation **sans upgrade implicite** (GSO-REQ-168) ; critères
+  de fin + **autonomie finale** — aucune lecture de l'ancien dépôt
+  (GSO-REQ-170) ; rapport avec **un verdict daté par site** (GSO-REQ-171) ;
+  **retour arrière organisationnel** distinct du rollback d'image L7,
+  non destructif, sans script (GSO-REQ-172) ; ancien vault conservé, nettoyage
+  = décision humaine séparée (GSO-REQ-169).
+- **Aucun** playbook, script ou cible `make` de migration : l'exécution réelle
+  est une décision humaine distincte de la construction (GSO-REQ-188).
+- `tests/l9-migration-doc-guard.sh` (preuve **non numérotée** — le préflight
+  n'attribue aucun `GSO-T` à L9) : vérifie la présence de **toutes** les
+  étapes obligatoires dans `MIGRATION.md`, l'interdiction d'une migration
+  globale, l'absence d'outil de migration, l'absence de lecture de l'ancien
+  dépôt local (GSO-REQ-170), l'absence de recopie d'artefact du rôle
+  (GSO-REQ-133) ; **réutilise `gso_validate.py registry` / `vault`** sur des
+  fixtures synthétiques ancien → nouveau pour prouver que la **cible** de
+  migration est conforme au contrat.
+- `tests/fixtures/l9-old-profile/` (forme plate `grav_*`, avec un champ non
+  mappé de démonstration) et `tests/fixtures/l9-migrated/` (registre indexé
+  par `inventory_hostname`) — **entièrement synthétiques**.
+- `.github/workflows/ci.yml` : job `static` étendu à `l9-migration-doc-guard`.
+
+L9 **ne migre aucun site réel**, ne lit ni ne copie aucun vault opérationnel,
+ne crée aucun inventaire de production, ne se connecte à aucune VM.
+
 ### Ajouté — lot L8 (cycle de vie documentaire : retrait, réactivation)
 
 - `registry/retired-sites.yml` (racine `retired_grav_sites`) et
