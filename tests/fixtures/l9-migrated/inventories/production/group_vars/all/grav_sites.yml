@@ -1,0 +1,22 @@
+---
+# FIXTURE L9 — registre APRÈS migration de `old-lavallee` (cartographie
+# MIGRATION.md §4). SYNTHÉTIQUE. Aucune valeur secrète (elles vont dans
+# vault_grav_sites, jamais ici).
+#
+# Décisions humaines documentées :
+#   - digest: ""      -> référence par tag (l'ancien profil n'avait pas de digest)
+#   - state: started  -> l'ancien profil impliquait `started`
+#   - project_name    -> repris du nom d'hôte historique
+# Champ non mappé de l'ancien profil (`legacy_smtp_relay`) : classé OBSOLÈTE
+# dans le rapport de migration — non repris.
+grav_sites:
+  old-lavallee:
+    project_name: old-lavallee
+    image: registry.example.invalid/fixture/old-lavallee
+    version: "1.0.3"
+    digest: ""
+    container_name: old-lavallee
+    base_directory: /opt/old-lavallee
+    bind_address: 0.0.0.0
+    http_port: 8080
+    state: started

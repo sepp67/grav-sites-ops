@@ -1,0 +1,28 @@
+---
+# FIXTURE L9 — ANCIEN profil, variables NON secrètes à plat (forme du rôle).
+# Les secrets sont dans grav_servers/vault.yml (à plat, NON suivi) — le test
+# les synthétise en mktemp. Aucun secret ici.
+grav_image: "registry.example.invalid/fixture/old-lavallee"
+grav_version: "1.0.3"
+
+grav_container_name: "old-lavallee"
+grav_base_directory: "/opt/old-lavallee"
+
+grav_bind_address: "0.0.0.0"
+grav_http_port: 8080
+
+# Bootstrap administrateur : indirection explicite vers le vault (à plat).
+grav_admin_user: "{{ vault_grav_admin_user }}"
+grav_admin_password: "{{ vault_grav_admin_password }}"
+grav_admin_email: "{{ vault_grav_admin_email }}"
+grav_admin_fullname: "{{ vault_grav_admin_fullname }}"
+grav_admin_language: "{{ vault_grav_admin_language }}"
+
+# Secret applicatif optionnel (indirection vers le vault à plat).
+grav_secrets:
+  - name: email-private.php
+    content: "{{ vault_grav_email_private_php }}"
+
+# Champ SANS correspondance normative : doit provoquer une décision humaine
+# documentée (cartographie MIGRATION.md §4).
+legacy_smtp_relay: "smtp.old.invalid:587"
