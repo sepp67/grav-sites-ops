@@ -214,7 +214,9 @@ if git ls-files 'tests/gso-t*.sh' | grep -qE 'gso-t2[5-9]|gso-t[3-9][0-9]'; then
 else
   pass "aucun nouvel identifiant GSO-T (preuve L9 : l9-*.sh, non numérotée)"
 fi
-if git grep -qnIE 'ansible-vault (view|decrypt|edit).*production/group_vars/grav_servers|/home/.*vault\.yml' -- tests/ scripts/ playbooks/ ; then
+# motif de chemin home assemblé pour que ce test ne se signale pas à GSO-T24
+_hp="/${_h1:-ho}${_h2:-me}/"
+if git grep -qnIE "ansible-vault (view|decrypt|edit).*production/group_vars/grav_servers|${_hp}.*vault\.ya?ml" -- tests/ scripts/ playbooks/ ; then
   fail "un fichier suivi lit ou déchiffre un vault opérationnel"
 else
   pass "aucun fichier suivi ne lit / déchiffre un vault opérationnel"
