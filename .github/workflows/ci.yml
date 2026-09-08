@@ -68,6 +68,8 @@ jobs:
         run: bash tests/l8-history-append-only.sh
       - name: L8 — validation des registres retiré / réactivé suivis + append-only
         run: make lint-lifecycle
+      - name: L9 — garde-fou de la migration documentaire
+        run: bash tests/l9-migration-doc-guard.sh
 
   role:
     name: Installation de la dépendance de rôle
