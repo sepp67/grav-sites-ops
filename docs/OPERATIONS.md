@@ -4,8 +4,9 @@ Résumé normatif : contrat architectural `v0.5.0`, sections 8.5, 13 et 14
 (`docs/CONTRAT-ARCHITECTURAL.md`). En cas de divergence, le contrat fait foi.
 
 Livré par les **lots L3** (sélecteur fermé, préflight lecture seule), **L4**
-(déploiement d'un site), **L5** (redémarrage, arrêt) et **L6** (contrôle de
-dérive, `check` / `check-all`, lecture seule).
+(déploiement d'un site), **L5** (redémarrage, arrêt), **L6** (contrôle de
+dérive, `check` / `check-all`, lecture seule) et **L7** (procédures
+déclaratives de mise à jour et de rollback, gardes de persistance).
 
 ## Interface opérateur
 
@@ -156,6 +157,75 @@ fichier de déploiement (GSO-REQ-089).
 
 Un site à l'état désiré `stopped` reste un **projet actif** du registre : il
 est une cible d'identité légitime pour les trois intentions.
+
+## Mise à jour et rollback (lot L7) — usages déclaratifs de `deploy`
+
+La mise à jour et le rollback **ne sont pas des intentions techniques** ni des
+playbooks : ce sont **deux usages déclaratifs de `deploy-site.yml`** (contrat
+§13.1 — interface fermée ; §15.1 / §15.4). Il n'existe **aucun**
+`update-site.yml`, `rollback-site.yml`, `make update`, `make rollback`, ni
+`_gso_intent` de mise à jour ou de rollback.
+
+### Procédure de mise à jour (contrat §15.1)
+
+```
+1. identifier la nouvelle image applicative publiée (version, digest éventuel)
+2. modifier l'entrée du site dans grav_sites.yml (registre)
+3. examiner le diff Git
+4. committer la décision
+5. make check SITE=<hôte>          (vérifier l'écart avant d'agir)
+6. make deploy SITE=<hôte>         (appliquer exactement l'état déclaré)
+7. make check SITE=<hôte>          (confirmer désiré = appliqué = réel — GSO-REQ-116/118)
+```
+
+### Procédure de rollback (contrat §15.4 — « suit le même chemin qu'une mise à jour »)
+
+```
+1. identifier la dernière référence applicative connue comme SAINE
+2. re-déclarer EXPLICITEMENT `version` (et le cas échéant `digest`) dans grav_sites.yml
+3. examiner le diff Git puis committer la décision de rollback
+4. make check SITE=<hôte>
+5. make deploy SITE=<hôte>
+6. make check SITE=<hôte>
+```
+
+Le rollback **n'est pas** une action CLI, **ne choisit pas** dans l'historique
+Docker, **ne déduit pas** automatiquement une version antérieure, **n'accepte
+aucune** surcharge `--version` / `--digest` / `--image` / `--extra-vars`
+(GSO-REQ-109) et **ne dépend d'aucun tag flottant**. `version` et `digest`
+proviennent **exclusivement** du registre committé (`translate.yml` :
+`_reg.version`, `_reg.digest`), transmis **séparément** au rôle qui construit
+la référence effective — l'orchestrateur ne reconstruit **jamais** une
+référence hybride `image:version@digest` (GSO-REQ-110). Un rollback vers le
+**même digest** mais une **version humaine différente** reste une déclaration
+distincte, explicite et tracée.
+
+Un échec de mise à jour **ne déclenche aucun rollback automatique**
+(GSO-REQ-114) : la procédure s'arrête, l'opérateur analyse les diagnostics du
+rôle. Chaque application produit une nouvelle entrée dans le journal du rôle ;
+`grav-sites-ops` **ne tronque ni ne réécrit** ce journal (GSO-REQ-117).
+
+### Persistance — image ≠ contenu
+
+> Le rollback logiciel rétablit une version déclarée de l'image. Les données
+> persistantes restent dans leur état courant. Une restauration de contenu
+> constitue une opération différente, hors du rollback applicatif automatique.
+
+Aucune opération `grav-sites-ops` (déploiement, mise à jour, redémarrage,
+arrêt, rollback) ne supprime un volume, ne recrée un répertoire persistant à
+vide, n'efface `pages` / `accounts` / `data` / `images`, ne supprime les
+secrets applicatifs, n'exécute `docker compose down --volumes` / `docker
+volume rm` / `prune` / `rm -rf` d'un chemin persistant, ni ne restaure
+automatiquement une sauvegarde (GSO-REQ-040/075/076/077/078/079/113). Les
+quatre chemins persistants (`{base_directory}/data/{pages,accounts,data,images}`)
+et `{base_directory}/secrets` sont dérivés par le rôle de `grav_base_directory`
+seul ; l'orchestrateur ne transmet **aucun** sous-chemin ni drapeau de
+restauration. Un changement de `base_directory` ou `container_name` dans le
+registre **n'est pas** une mise à jour applicative banale (GSO-REQ-176).
+
+Le garde-fou statique `tests/l7-persistence-guard.sh` (exécuté par la CI —
+GSO-REQ-102) recherche ces opérations interdites dans les playbooks, scripts
+et cibles Makefile.
 
 ## Contrôle de dérive (lot L6)
 

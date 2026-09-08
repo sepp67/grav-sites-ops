@@ -11,6 +11,48 @@ et le versionnement sémantique.
 
 ## [Non publié]
 
+### Ajouté — lot L7 (mise à jour, rollback, persistance)
+
+- **Aucun** nouveau playbook, wrapper, cible Makefile ou intention
+  `_gso_intent` : la mise à jour et le rollback sont **deux usages
+  déclaratifs de `deploy-site.yml`** (contrat §13.1 — interface fermée ;
+  §15.1 / §15.4). Le chemin `deploy` de L4 est **byte-identique**.
+- `docs/OPERATIONS.md` : procédures normatives de mise à jour et de rollback
+  (modifier le registre → diff Git → commit → `make check` → `make deploy` →
+  `make check`) ; distinction **image ≠ contenu** (verbatim contrat §15.5) ;
+  section persistance (GSO-REQ-040/075-079/113/176).
+- `tests/l7-persistence-guard.sh` (statique, exécuté par la CI —
+  GSO-REQ-102) : recherche dans les fichiers d'**exécution** (playbooks,
+  scripts, Makefile, commentaires retirés) toute opération interdite —
+  `docker compose down --volumes`, `docker volume rm` / `prune`, `rm -rf`
+  d'un chemin persistant, `state: absent`, `rsync` / restauration de
+  contenu, bloc `rescue`/`always` (rollback automatique — GSO-REQ-114),
+  écriture de `.deployed_state.yml` / `.deployed_version` /
+  `deployed_versions.log` (GSO-REQ-117), voie `-e` / `--extra-vars` /
+  `--version` / `--digest` / `--image` (GSO-REQ-109), et tout fichier ou
+  cible `update*` / `rollback*`.
+- Tests (doublure du rôle, fixtures synthétiques, dépôt Git jetable, 100 %
+  reproductibles — **aucun conteneur réel**) :
+  - `tests/gso-t17-update-a-to-b.sh` : déclaration A puis B committées ;
+    `deploy-site.yml` transmet **exactement** l'image / version / digest de
+    B ; aucune valeur héritée de A ; digest transmis tel quel, jamais de
+    référence hybride (GSO-REQ-110) ; `grav_base_directory` /
+    `grav_container_name` et toutes les variables structurantes inchangées
+    (seule la dimension image bouge — GSO-REQ-076) ; aucune surcharge CLI
+    acceptée ; aucune opération destructive ; isolation du site non ciblé.
+  - `tests/gso-t18-rollback-b-to-a.sh` : séquence observée **A → B → A**
+    (puis A2) ; chaque passage transmet la référence **déclarée et
+    committée** (jamais l'avant-dernière image, jamais un tag flottant) ;
+    le rollback est une re-déclaration Git explicite (GSO-REQ-112) ; trois
+    traces d'application distinctes conservées, aucune effacée ni réécrite ;
+    rollback vers le **même digest** à version humaine différente resté
+    explicite ; chemins persistants conservés ; aucune restauration de
+    contenu (GSO-REQ-113) ; même sélecteur / verrou que `deploy` ;
+    propagation d'erreur ; aucune modification automatique du registre
+    (GSO-REQ-109/126).
+- `.github/workflows/ci.yml` : `l7-persistence-guard` dans le job `static` ;
+  `GSO-T17` / `GSO-T18` dans le job `translate` (doublure, reproductible).
+
 ### Ajouté — lot L6 (contrôle de dérive, lecture seule)
 
 - `playbooks/check-site.yml` + `playbooks/check-all.yml` + séquence commune

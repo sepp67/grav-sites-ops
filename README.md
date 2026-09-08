@@ -14,7 +14,7 @@ d'une instance Grav : ce mécanisme appartient exclusivement au rôle.
 **Construction en cours — lots L0 (harnais), L1 (données déclaratives),
 L2 (modèle de vault), L3 (sélecteur fermé + préflight), L4 (déploiement d'un
 site), L5 (redémarrage et arrêt d'un site), L6 (contrôle de dérive, lecture
-seule).**
+seule), L7 (mise à jour et rollback déclaratifs, gardes de persistance).**
 
 Le dépôt reste **non opérationnel par défaut** : ni inventaire de production,
 ni vault opérationnel. Les seules données versionnées sont l'inventaire, le
@@ -58,7 +58,7 @@ Toutes les commandes ci-dessous sont couvertes par un test (`make test`).
 | `make test-role` | vérifie l'installation du rôle (accès réseau requis) |
 | `make validate SITE=<hôte>` | sélecteur fermé, lecture seule (voir `docs/OPERATIONS.md`) |
 | `make preflight SITE=<hôte>` | préflight opérateur, lecture seule |
-| `make deploy SITE=<hôte>` | déploie / actualise l'instance d'un site (sélecteur → verrou → rôle) |
+| `make deploy SITE=<hôte>` | déploie / actualise l'instance d'un site (sélecteur → verrou → rôle) — **aussi la mise à jour et le rollback**, par déclaration dans le registre (voir `docs/OPERATIONS.md`) |
 | `make restart SITE=<hôte>` | redémarre l'instance sans changer sa référence désirée (GSO-REQ-088) |
 | `make stop SITE=<hôte>` | arrête le conteneur d'un site, sans rien supprimer ni retirer du parc (GSO-REQ-089) |
 | `make check SITE=<hôte>` | contrôle de dérive d'un site : désiré vs appliqué vs réel, classé (lecture seule) |

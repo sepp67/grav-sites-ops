@@ -28,20 +28,34 @@ aucun identifiant. Exécutée par la CI (`.github/workflows/ci.yml`) et par
 | `l5-action-closed` | garde-fou statique : intentions fermées, `grav_state` jamais fourni par l'opérateur, aucune orchestration destructive, aucun nouvel identifiant GSO-T |
 | `GSO-T19` | contrôle des trois états + classification de dérive (8 catégories §16.5), non-mutation, non-fuite (**fausse CLI `docker`**) |
 | `GSO-T20` | `check-all` non mutant, sans `include_role` du rôle, cohérence déclarative sans VM, verdict de parc (**fausse CLI `docker`**) |
+| `GSO-T17` | mise à jour A→B déclarative : image/version/digest exacts de B, digest non hybride, chemins persistants conservés (**doublure de rôle + dépôt Git jetable**) |
+| `GSO-T18` | rollback B→A explicitement déclaré : séquence A→B→A, références committées et traçables, aucune restauration de contenu (**doublure**) |
+| `l7-persistence-guard` | garde statique (CI) : aucune opération destructive de volume / répertoire persistant, aucun rollback automatique, aucune voie de surcharge CLI, aucun playbook/wrapper `update*`/`rollback*` (GSO-REQ-102) |
 
-Toutes les preuves L4–L6 « logiques » (traduction exacte, `name`+`content` sans
+Toutes les preuves L4–L7 « logiques » (traduction exacte, `name`+`content` sans
 `src`, tri-state, une seule invocation, second contrôle de cible, non-fuite,
-verrou partagé, `restart`/`stop` fermés, contrôle de dérive lecture seule) sont
-dans cette catégorie.
+verrou partagé, `restart`/`stop` fermés, contrôle de dérive lecture seule,
+mise à jour / rollback déclaratifs, gardes de persistance) sont dans cette
+catégorie.
 
 Le contrôle de dérive (L6) n'exécute **jamais** de vrai `docker` : `GSO-T19` et
 `GSO-T20` utilisent une fausse CLI `docker` en lecture seule, qui **refuse
 bruyamment** toute sous-commande mutante, et des `.deployed_state.yml`
 synthétiques. Aucun conteneur, aucune connexion.
 
-Les preuves L5 n'ont **pas** d'identifiant `GSO-Txx` : le préflight de
-construction ne prévoit **aucun** scénario `GSO-T` dédié à L5. Elles sont
-tracées comme preuves L5 non numérotées (`tests/l5-*.sh`).
+La mise à jour et le rollback (L7) sont des **usages déclaratifs de
+`deploy-site.yml`** : `GSO-T17` / `GSO-T18` rejouent le vrai chemin `deploy`
+avec la **doublure du rôle** et un dépôt Git jetable, éditant `grav_sites.yml`
+entre chaque passage pour prouver la séquence A→B→A et la conservation des
+chemins persistants. Le journal append-only produit par la doublure sert
+**uniquement** à vérifier l'orchestration : la responsabilité réelle de
+`.deployed_state.yml` / `deployed_versions.log` reste celle de
+`sepp67.grav_site` (vérifiée par son propre contrat et par `GSO-T15`).
+
+Les preuves L5 et le garde `l7-persistence-guard` n'ont **pas** d'identifiant
+`GSO-Txx` : le préflight ne prévoit de scénario `GSO-T` dédié ni pour L5, ni
+pour le garde de persistance. Elles sont tracées comme preuves non numérotées
+(`tests/l5-*.sh`, `tests/l7-*.sh`).
 
 ## 2. Test d'acceptation fonctionnel local — `GSO-T15`
 
