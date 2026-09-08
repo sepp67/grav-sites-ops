@@ -100,10 +100,11 @@ lint-vault: ## Valide le modele de vault d'exemple (validateur statique L2)
 	python3 scripts/lib/gso_validate.py vault --inventory inventories/example/hosts.yml
 
 .PHONY: lint-lifecycle
-lint-lifecycle: ## Valide les registres retire / reactive suivis (lecture seule, L8)
+lint-lifecycle: ## Valide les registres retire / reactive suivis + append-only inter-version (lecture seule, L8)
 	python3 scripts/lib/gso_lifecycle.py \
 	  --retired registry/retired-sites.yml \
 	  --reactivated registry/reactivated-sites.yml
+	bash scripts/lifecycle-history-check.sh
 
 .PHONY: test-role
 test-role: ## Verifie l'installation du role (acces reseau requis)

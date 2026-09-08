@@ -23,20 +23,34 @@ et le versionnement sémantique.
   (aucune écriture, aucun sous-processus, aucun `git`). Importe les primitives
   de `gso_validate.py` **sans le modifier** (chemin `deploy` intact). Vérifie :
   racines exactes, schéma fermé des fiches, dates ISO, absence de champ
-  `status` sur une fiche retirée (§21.9), historique chronologique
-  (append-only), et — quand un registre / vault est fourni — la **disjonction
+  `status` sur une fiche retirée (§21.9), ordre chronologique dans l'état
+  courant, et — quand un registre / vault est fourni — la **disjonction
   stricte** `grav_sites` ∩ `retired_grav_sites` = ∅ (GSO-REQ-052),
   `vault_grav_sites` ∩ `vault_retired_grav_sites` = ∅, secrets d'un projet
   retiré hors de `vault_grav_sites` (GSO-REQ-073), et qu'aucune clé réactivée
   ne subsiste dans `retired_grav_sites` (GSO-REQ-181).
-- `Makefile` : cible `make lint-lifecycle`.
+- **Preuve append-only INTER-VERSION** (GSO-REQ-181) : `gso_lifecycle.py
+  --history-before <ancienne> --reactivated <nouvelle>` impose que l'ancien
+  historique de chaque clé soit un **préfixe exact** du nouveau (aucune
+  suppression / modification / réécriture / insertion rétroactive ; seuls des
+  ajouts en fin de liste et de nouvelles clés). `scripts/lifecycle-history-check.sh`
+  — **seul** endroit qui touche à Git — parcourt les versions successives de
+  `registry/reactivated-sites.yml` et vérifie **chaque transition** ; un
+  dépôt Git **superficiel** le fait échouer explicitement (jamais un faux
+  succès) ; le commit initial est exempté. Aucune écriture.
+- `Makefile` : cible `make lint-lifecycle` (état courant **+** append-only
+  inter-version sur tout l'historique).
 - `docs/LIFECYCLE-SCHEMA.md` : schéma normatif des deux registres + règles de
   disjonction. `docs/OPERATIONS.md` : procédures **Git manuelles** de retrait
   (contrat §21.6) et de réactivation (§21.8), et ce que L8 ne fait jamais.
 - Tests (fixtures synthétiques, sans Docker / réseau / connexion) :
-  `tests/gso-t21-retrait-non-destructif.sh`, `tests/gso-t22-disjonction-registres.sh`.
-- `.github/workflows/ci.yml` : job `static` étendu à `GSO-T21`, `GSO-T22` et
-  `make lint-lifecycle`.
+  `tests/gso-t21-retrait-non-destructif.sh`, `tests/gso-t22-disjonction-registres.sh`
+  (dont **9 cas append-only inter-version** : inchangé / ajout en fin /
+  nouvelle clé acceptés ; suppression / modification / inversion / insertion /
+  clé supprimée / remplacement refusés), `tests/l8-history-append-only.sh`
+  (parcours de l'historique Git réel + refus d'un dépôt superficiel).
+- `.github/workflows/ci.yml` : job `static` — `fetch-depth: 0`, étendu à
+  `GSO-T21`, `GSO-T22`, `l8-history-append-only` et `make lint-lifecycle`.
 - `tests/fixtures/l8-lifecycle-ok/` : arborescence synthétique (2 actifs,
   2 retirés, 2 réactivations) — jamais une donnée réelle.
 

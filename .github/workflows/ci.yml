@@ -22,6 +22,11 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          # L8 : la preuve append-only inter-version parcourt l'historique Git
+          # de registry/reactivated-sites.yml — un clone superficiel la ferait
+          # échouer explicitement (jamais un faux succès).
+          fetch-depth: 0
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
@@ -59,7 +64,9 @@ jobs:
         run: bash tests/gso-t21-retrait-non-destructif.sh
       - name: GSO-T22 — registres actif / retiré disjoints, y compris après réactivation
         run: bash tests/gso-t22-disjonction-registres.sh
-      - name: L8 — validation des registres retiré / réactivé suivis
+      - name: L8 — append-only inter-version de reactivated-sites.yml (historique Git)
+        run: bash tests/l8-history-append-only.sh
+      - name: L8 — validation des registres retiré / réactivé suivis + append-only
         run: make lint-lifecycle
 
   role:

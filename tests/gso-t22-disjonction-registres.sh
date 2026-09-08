@@ -233,6 +233,99 @@ lc "clé réactivée subsistant dans retired_grav_sites (GSO-REQ-181)" ko \
   --retired "$tmp/stuck-retired.yml" --reactivated "$FIX/registry/reactivated-sites.yml"
 
 # --------------------------------------------------------------------------
+# 4bis. APPEND-ONLY INTER-VERSION : comparaison de deux états before -> after
+#       (GSO-REQ-181). `gso_lifecycle.py --history-before B --reactivated A`.
+# --------------------------------------------------------------------------
+H="$tmp/hist"; mkdir -p "$H"
+mk_ev() { printf '    - {reactivated_at: "%s", project_name: p%s, former_inventory_host: %s, previous_retirement: {retired_at: "%s", reason: r}}\n' "$1" "$2" "$2" "$3"; }
+{ echo "reactivated_sites:";
+  echo "  grav-p:"; mk_ev 2026-01-10 grav-p 2025-12-01; mk_ev 2026-04-10 grav-p 2026-03-01;
+  echo "  grav-q:"; mk_ev 2026-02-01 grav-q 2026-01-01; } > "$H/before.yml"
+
+ao() {  # <label> <ok|ko> <after-file>
+  local label="$1" want="$2" after="$3" rc=0
+  python3 "$LC" --history-before "$H/before.yml" --reactivated "$after" > "$tmp/ao.out" 2>&1 || rc=$?
+  if [ "$want" = ok ]; then
+    [ "$rc" = 0 ] && pass "append-only : $label -> accepté" || { sed 's/^/   | /' "$tmp/ao.out"|grep FAIL; fail "append-only : $label attendu accepté (rc=$rc)"; }
+  else
+    [ "$rc" != 0 ] && pass "append-only : $label -> refusé" || fail "append-only : $label accepté à tort"
+  fi
+}
+
+# a) historique inchangé
+cp "$H/before.yml" "$H/same.yml"; ao "historique inchangé" ok "$H/same.yml"
+# b) nouvel événement ajouté EN FIN
+{ cat "$H/before.yml"; } > "$H/append.yml"
+python3 - "$H/append.yml" <<'PY'
+import sys, yaml
+d = yaml.safe_load(open(sys.argv[1]))
+d["reactivated_sites"]["grav-p"].append({"reactivated_at":"2026-09-01","project_name":"pgrav-p",
+  "former_inventory_host":"grav-p","previous_retirement":{"retired_at":"2026-08-01","reason":"r"}})
+yaml.safe_dump(d, open(sys.argv[1],"w"), sort_keys=False)
+PY
+ao "nouvel événement ajouté en fin" ok "$H/append.yml"
+# c) nouvelle clé avec premier événement
+python3 - "$H/before.yml" "$H/newkey.yml" <<'PY'
+import sys, yaml
+d = yaml.safe_load(open(sys.argv[1]))
+d["reactivated_sites"]["grav-z"] = [{"reactivated_at":"2026-07-01","project_name":"pgrav-z",
+  "former_inventory_host":"grav-z","previous_retirement":{"retired_at":"2026-06-01","reason":"r"}}]
+yaml.safe_dump(d, open(sys.argv[2],"w"), sort_keys=False)
+PY
+ao "nouvelle clé avec premier événement" ok "$H/newkey.yml"
+# d) ancien événement supprimé
+python3 - "$H/before.yml" "$H/deleted.yml" <<'PY'
+import sys, yaml
+d = yaml.safe_load(open(sys.argv[1]))
+d["reactivated_sites"]["grav-p"].pop(0)
+yaml.safe_dump(d, open(sys.argv[2],"w"), sort_keys=False)
+PY
+ao "ancien événement supprimé" ko "$H/deleted.yml"
+# e) ancien événement modifié
+python3 - "$H/before.yml" "$H/modified.yml" <<'PY'
+import sys, yaml
+d = yaml.safe_load(open(sys.argv[1]))
+d["reactivated_sites"]["grav-p"][0]["previous_retirement"]["reason"] = "MODIFIÉ"
+yaml.safe_dump(d, open(sys.argv[2],"w"), sort_keys=False)
+PY
+ao "ancien événement modifié" ko "$H/modified.yml"
+# f) deux événements anciens inversés
+python3 - "$H/before.yml" "$H/swapped.yml" <<'PY'
+import sys, yaml
+d = yaml.safe_load(open(sys.argv[1]))
+d["reactivated_sites"]["grav-p"][0], d["reactivated_sites"]["grav-p"][1] = \
+    d["reactivated_sites"]["grav-p"][1], d["reactivated_sites"]["grav-p"][0]
+yaml.safe_dump(d, open(sys.argv[2],"w"), sort_keys=False)
+PY
+ao "deux événements anciens inversés" ko "$H/swapped.yml"
+# g) événement inséré AVANT le dernier événement existant
+python3 - "$H/before.yml" "$H/inserted.yml" <<'PY'
+import sys, yaml
+d = yaml.safe_load(open(sys.argv[1]))
+d["reactivated_sites"]["grav-p"].insert(1, {"reactivated_at":"2026-02-15","project_name":"pgrav-p",
+  "former_inventory_host":"grav-p","previous_retirement":{"retired_at":"2026-02-01","reason":"r"}})
+yaml.safe_dump(d, open(sys.argv[2],"w"), sort_keys=False)
+PY
+ao "événement inséré avant le dernier existant" ko "$H/inserted.yml"
+# h) clé historique entièrement supprimée
+python3 - "$H/before.yml" "$H/keygone.yml" <<'PY'
+import sys, yaml
+d = yaml.safe_load(open(sys.argv[1]))
+d["reactivated_sites"].pop("grav-q")
+yaml.safe_dump(d, open(sys.argv[2],"w"), sort_keys=False)
+PY
+ao "clé historique entièrement supprimée" ko "$H/keygone.yml"
+# i) historique remplacé par une autre liste (valide en soi)
+python3 - "$H/before.yml" "$H/replaced.yml" <<'PY'
+import sys, yaml
+d = yaml.safe_load(open(sys.argv[1]))
+d["reactivated_sites"]["grav-p"] = [{"reactivated_at":"2026-03-03","project_name":"pgrav-p",
+  "former_inventory_host":"grav-p","previous_retirement":{"retired_at":"2026-02-02","reason":"autre"}}]
+yaml.safe_dump(d, open(sys.argv[2],"w"), sort_keys=False)
+PY
+ao "historique remplacé par une autre liste valide" ko "$H/replaced.yml"
+
+# --------------------------------------------------------------------------
 # 5. Validateur strictement read-only ; aucun résidu
 # --------------------------------------------------------------------------
 sig() { find "$1" -type f -exec stat -c '%n %Y %s' {} \; | sort | sha1sum; }

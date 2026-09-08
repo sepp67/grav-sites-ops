@@ -280,9 +280,69 @@ def validate_reactivated(path: str, r: Reporter) -> dict:
             elif prv is not None:
                 r.fail(f"{epx}.previous_retirement : doit être un dictionnaire")
         r.check(dates == sorted(dates),
-                f"{pfx} : événements en ordre chronologique (append-only — GSO-REQ-181)",
+                f"{pfx} : événements en ordre chronologique (dans l'état courant)",
                 f"{pfx} : événements dans le désordre — l'historique a-t-il été réécrit ?")
     return body
+
+
+# --------------------------------------------------------------------------- #
+# Append-only INTER-VERSION de reactivated-sites.yml (GSO-REQ-181)
+# --------------------------------------------------------------------------- #
+# `validate_reactivated` ne voit qu'un seul fichier : elle vérifie le schéma et
+# l'ordre chronologique de l'état COURANT, mais ne peut pas détecter la
+# suppression, la modification, la réécriture ou l'insertion rétroactive d'un
+# événement ancien. Cette fonction compare DEUX états (`before` -> `after`) et
+# impose que l'historique de chaque clé préexistante soit un PRÉFIXE EXACT du
+# nouvel historique — seul l'ajout d'événements EN FIN de liste, et l'ajout de
+# nouvelles clés, sont autorisés. Purement en lecture : aucune écriture.
+def validate_append_only(before_path: str, after_path: str, r: Reporter) -> None:
+    label = "append-only"
+    b_doc = load_yaml(before_path) or {}
+    a_doc = load_yaml(after_path) or {}
+    b = b_doc.get(REACTIVATED_ROOT) or {}
+    a = a_doc.get(REACTIVATED_ROOT) or {}
+    if not isinstance(b, dict) or not isinstance(a, dict):
+        r.fail(f"{label} : racine `{REACTIVATED_ROOT}` absente ou non-dictionnaire dans un des deux états")
+        return
+
+    for key, b_events in b.items():
+        kx = f"{label}[{key}]"
+        if key not in a:
+            r.fail(f"{kx} : clé historique SUPPRIMÉE dans la nouvelle version")
+            continue
+        a_events = a[key]
+        if not isinstance(b_events, list) or not isinstance(a_events, list):
+            r.fail(f"{kx} : la valeur doit être une liste dans les deux états")
+            continue
+        if len(a_events) < len(b_events):
+            r.fail(f"{kx} : historique TRONQUÉ ({len(b_events)} -> {len(a_events)} événement(s))")
+            continue
+        prefix_ok = a_events[: len(b_events)] == b_events
+        r.check(prefix_ok,
+                f"{kx} : l'ancien historique est un préfixe EXACT du nouveau ({len(b_events)} -> {len(a_events)})",
+                f"{kx} : un événement antérieur a été supprimé, modifié, réordonné ou inséré "
+                f"(l'ancien historique n'est plus un préfixe exact)")
+        if prefix_ok and len(a_events) > len(b_events):
+            tail = a_events[len(b_events):]
+            last = None
+            for ev in b_events:
+                if isinstance(ev, dict) and _is_date(ev.get("reactivated_at")):
+                    last = ev["reactivated_at"]
+            ok_chrono = True
+            for ev in tail:
+                d = ev.get("reactivated_at") if isinstance(ev, dict) else None
+                if _is_date(d) and _is_date(last) and d < last:
+                    ok_chrono = False
+                if _is_date(d):
+                    last = d
+            r.check(ok_chrono,
+                    f"{kx} : les {len(tail)} nouvel(s) événement(s) sont postérieurs au dernier existant",
+                    f"{kx} : un nouvel événement est antérieur au dernier événement déjà enregistré")
+
+    new_keys = sorted(set(a) - set(b))
+    if new_keys:
+        r.ok(f"{label} : nouvelle(s) clé(s) autorisée(s) : {new_keys}")
+    r.ok(f"{label} : {len(b)} historique(s) comparé(s) — seuls des ajouts en fin de liste sont admis")
 
 
 # --------------------------------------------------------------------------- #
@@ -370,22 +430,41 @@ def _finish(r: Reporter, label: str) -> int:
 
 def main(argv: list[str] | None = None) -> int:
     ap = argparse.ArgumentParser(prog="gso_lifecycle", description=__doc__)
-    ap.add_argument("--retired", required=True)
-    ap.add_argument("--reactivated", required=True)
-    ap.add_argument("--registry", default=None)
-    ap.add_argument("--vault", default=None)
+    ap.add_argument("--retired", default=None,
+                    help="registry/retired-sites.yml — état courant")
+    ap.add_argument("--reactivated", default=None,
+                    help="registry/reactivated-sites.yml — état courant (= 'after' pour --history-before)")
+    ap.add_argument("--registry", default=None, help="grav_sites.yml — active la disjonction registre")
+    ap.add_argument("--vault", default=None, help="vault.yml — active la disjonction vault")
+    ap.add_argument("--history-before", default=None, dest="history_before",
+                    help="version ANTÉRIEURE de reactivated-sites.yml — active la comparaison "
+                         "append-only inter-version (avec --reactivated comme version 'after')")
     args = ap.parse_args(argv)
 
     r = Reporter()
-    for lbl, p in (("retired-sites", args.retired), ("reactivated-sites", args.reactivated)):
+    to_check: list[tuple[str, str]] = []
+    if args.retired is not None:
+        to_check.append(("retired-sites", args.retired))
+    if args.reactivated is not None:
+        to_check.append(("reactivated-sites", args.reactivated))
+    if args.history_before is not None:
+        to_check.append(("history-before", args.history_before))
+    if not to_check:
+        ap.error("aucune opération : fournir --retired/--reactivated et/ou --history-before")
+    if args.history_before is not None and args.reactivated is None:
+        ap.error("--history-before exige --reactivated (la version 'after')")
+    for lbl, p in to_check:
         if not os.path.isfile(p):
             r.fail(f"{lbl} : fichier absent : {p}")
     if r.errors:
         return _finish(r, "lifecycle")
 
-    retired = validate_retired(args.retired, r)
-    reactivated = validate_reactivated(args.reactivated, r)
-    validate_disjonction(retired, reactivated, args.registry, args.vault, r)
+    retired = validate_retired(args.retired, r) if args.retired is not None else {}
+    reactivated = validate_reactivated(args.reactivated, r) if args.reactivated is not None else {}
+    if args.retired is not None and args.reactivated is not None:
+        validate_disjonction(retired, reactivated, args.registry, args.vault, r)
+    if args.history_before is not None:
+        validate_append_only(args.history_before, args.reactivated, r)
     return _finish(r, "lifecycle")
 
 

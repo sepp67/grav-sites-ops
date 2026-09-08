@@ -74,11 +74,31 @@ reactivated_sites:
 ```
 
 - Chaque clé est associée à une **liste** non vide d'événements.
-- **Append-only** : une nouvelle réactivation **ajoute** un événement ; les
-  événements antérieurs ne sont **jamais** modifiés ni supprimés. Les
-  `reactivated_at` d'une même clé sont en **ordre chronologique**.
+- **Append-only** : une nouvelle réactivation **ajoute** un événement en
+  **fin de liste** ; les événements antérieurs ne sont **jamais** modifiés,
+  supprimés, réordonnés ni précédés d'une insertion. Une nouvelle clé peut
+  apparaître. Les `reactivated_at` d'une même clé sont en **ordre
+  chronologique**.
 - Un projet retiré → réactivé → retiré → réactivé conserve **tous** ses
   événements.
+
+### Deux niveaux de contrôle de l'append-only
+
+| Niveau | Ce qui est vérifié | Où |
+|---|---|---|
+| **État courant** | schéma des événements ; ordre chronologique **dans le fichier** ; cohérence avec `retired_grav_sites` (§21.9) | `gso_lifecycle.py --reactivated …` (`make lint-lifecycle`, `GSO-T22`) |
+| **Inter-version** | pour chaque clé préexistante, l'ancien historique est un **préfixe exact** du nouveau ; aucune suppression / modification / réécriture / insertion rétroactive ; seuls des ajouts en fin de liste et de nouvelles clés | `gso_lifecycle.py --history-before <ancienne version> --reactivated <nouvelle>` |
+
+Le niveau **inter-version** est le seul qui prouve réellement l'append-only :
+observer un seul fichier ne permet pas de détecter la suppression d'un ancien
+événement ni le remplacement complet d'un historique par un autre historique
+valide. En CI, `scripts/lifecycle-history-check.sh` — **seul** endroit qui
+touche à Git dans la chaîne — parcourt les versions successives de
+`registry/reactivated-sites.yml` dans l'historique et vérifie **chaque
+transition**. Un dépôt Git **superficiel** fait **échouer** ce contrôle (jamais
+un faux succès) ; seul le commit qui **introduit** le fichier est exempté
+(aucun prédécesseur). Ce wrapper n'écrit rien et n'automatise aucune
+transformation.
 
 ## Disjonction stricte (GSO-REQ-052, GSO-REQ-073, §21.9)
 
