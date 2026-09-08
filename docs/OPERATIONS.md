@@ -5,8 +5,9 @@ Résumé normatif : contrat architectural `v0.5.0`, sections 8.5, 13 et 14
 
 Livré par les **lots L3** (sélecteur fermé, préflight lecture seule), **L4**
 (déploiement d'un site), **L5** (redémarrage, arrêt), **L6** (contrôle de
-dérive, `check` / `check-all`, lecture seule) et **L7** (procédures
-déclaratives de mise à jour et de rollback, gardes de persistance).
+dérive, `check` / `check-all`, lecture seule), **L7** (procédures
+déclaratives de mise à jour et de rollback, gardes de persistance) et **L8**
+(cycle de vie documentaire : retrait, réactivation, validateur lecture seule).
 
 ## Interface opérateur
 
@@ -263,6 +264,78 @@ site, site sans hôte, doublon, actif+retiré) **sans connexion aux VM**
 (GSO-REQ-125) : un registre incohérent le fait échouer avant tout parcours.
 Un hôte injoignable n'interrompt pas le parcours : il est classé `UNREACHABLE`
 et le parc ressort non conforme.
+
+## Cycle de vie d'un projet — retrait et réactivation (lot L8)
+
+Le retrait et la réactivation d'un site sont des **opérations Git manuelles**,
+explicites et séquencées (contrat §21). `grav-sites-ops` ne fournit **aucun
+playbook, aucun script, aucune cible `make`** qui les applique : il fournit
+les **fichiers documentaires** ([`docs/LIFECYCLE-SCHEMA.md`](LIFECYCLE-SCHEMA.md)),
+un **validateur en lecture seule** (`make lint-lifecycle`) qui vérifie le
+résultat **après coup**, et ces procédures. Aucune de ces opérations n'arrête
+une VM, ne supprime un conteneur, un volume ou une donnée persistante
+(GSO-REQ-027/029/040/182) ni n'appelle un hyperviseur (GSO-REQ-179).
+
+### Retrait d'un projet (contrat §21.6)
+
+1. relever la dernière référence effectivement déployée ;
+2. **vérifier** la sauvegarde de la VM et des volumes (opération distincte,
+   hors périmètre — GSO-REQ-078) ;
+3. traiter séparément la publication dans le `control-repository` si besoin ;
+4. **arrêter manuellement la VM** dans l'hyperviseur (jamais un playbook) ;
+5. retirer l'hôte de `inventories/production/hosts.yml` ;
+6. retirer sa définition de `…/group_vars/all/grav_sites.yml` ;
+7. déplacer ses secrets de `vault_grav_sites` vers `vault_retired_grav_sites`
+   (vault local non suivi, modifié séparément) ;
+8. ajouter sa fiche **sans secret** dans `registry/retired-sites.yml`
+   (schéma : [`LIFECYCLE-SCHEMA.md`](LIFECYCLE-SCHEMA.md)) ;
+9. `make lint-lifecycle` — et, si un registre/vault de test est résolvable,
+   `python3 scripts/lib/gso_lifecycle.py --retired … --reactivated … --registry … --vault …` ;
+10. examiner le **diff Git**, revue humaine, **commit explicite** des seuls
+    fichiers non secrets :
+
+```text
+inventories/production/hosts.yml
+inventories/production/group_vars/all/grav_sites.yml
+registry/retired-sites.yml
+```
+
+Les suppressions dans l'inventaire et le registre actif et l'ajout au registre
+retiré **doivent tenir dans le même changement Git** (GSO-REQ-044, GSO-REQ-178).
+
+### Réactivation d'un projet (contrat §21.8) — chemin inverse
+
+1. vérifier la conservation de la VM, des volumes et de la sauvegarde ;
+2. **redémarrer manuellement la VM** ;
+3. réinscrire l'hôte dans `hosts.yml` (même nom d'hôte, mêmes chemins
+   persistants — GSO-REQ-180) ;
+4. replacer sa définition dans `grav_sites.yml` ;
+5. déplacer ses secrets archivés de `vault_retired_grav_sites` vers
+   `vault_grav_sites` ;
+6. **retirer sa fiche** de `registry/retired-sites.yml` **et ajouter un
+   événement daté** à `registry/reactivated-sites.yml`, comprenant au minimum
+   `reactivated_at` et une copie de la dernière fiche retirée
+   (`previous_retirement`) — **dans la même opération** (GSO-REQ-052,
+   GSO-REQ-181) ;
+7. `make lint-lifecycle` puis `make check SITE=<hôte>` ;
+8. `make deploy SITE=<hôte>` (première cible unique — GSO-REQ-175) ;
+9. vérifier l'état désiré, appliqué et réel, et les quatre volumes ;
+10. diff Git, revue, **commit explicite**.
+
+`registry/reactivated-sites.yml` est un **historique append-only** : aucune
+réactivation antérieure n'est jamais réécrite ni supprimée. Après une
+réactivation, **aucune clé réactivée ne subsiste dans `retired_grav_sites`**
+(test automatique `GSO-T22`).
+
+### Ce que L8 ne fait jamais
+
+Aucun playbook / script de retrait ou de réactivation ; aucune modification
+automatique d'un inventaire, d'un registre ou d'un vault ; aucun `git add` /
+`git commit` automatisé ; aucun arrêt / suppression de VM ou de conteneur ;
+aucun mécanisme de purge ; aucune suppression de donnée persistante ; aucune
+destruction définitive (GSO-REQ-182 — exige un contrat séparé). Les
+transformations sont **éprouvées uniquement** comme états avant/après sur
+fixtures synthétiques.
 
 ## Concurrence
 

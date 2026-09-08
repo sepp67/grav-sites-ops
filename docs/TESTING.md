@@ -31,12 +31,19 @@ aucun identifiant. Exécutée par la CI (`.github/workflows/ci.yml`) et par
 | `GSO-T17` | mise à jour A→B déclarative : image/version/digest exacts de B, digest non hybride, chemins persistants conservés (**doublure de rôle + dépôt Git jetable**) |
 | `GSO-T18` | rollback B→A explicitement déclaré : séquence A→B→A, références committées et traçables, aucune restauration de contenu (**doublure**) |
 | `l7-persistence-guard` | garde statique (CI) : aucune opération destructive de volume / répertoire persistant, aucun rollback automatique, aucune voie de surcharge CLI, aucun playbook/wrapper `update*`/`rollback*` (GSO-REQ-102) |
+| `GSO-T21` | retrait déclaré sans tâche destructive : aucun playbook / script / cible de transformation, aucun appel d'hyperviseur, validateur read-only, transformation avant→après cohérente, données persistantes conservées (**fixtures synthétiques**) |
+| `GSO-T22` | registres actif / retiré strictement disjoints y compris après réactivation : disjonction stricte, transformation de réactivation, historique append-only, huit cas de rejet (**fixtures synthétiques**) |
 
-Toutes les preuves L4–L7 « logiques » (traduction exacte, `name`+`content` sans
+Toutes les preuves L4–L8 « logiques » (traduction exacte, `name`+`content` sans
 `src`, tri-state, une seule invocation, second contrôle de cible, non-fuite,
 verrou partagé, `restart`/`stop` fermés, contrôle de dérive lecture seule,
-mise à jour / rollback déclaratifs, gardes de persistance) sont dans cette
-catégorie.
+mise à jour / rollback déclaratifs, gardes de persistance, disjonction du
+cycle de vie) sont dans cette catégorie.
+
+Le cycle de vie (L8) n'exécute **aucun** Docker, réseau ni connexion :
+`GSO-T21` / `GSO-T22` construisent des états avant/après dans `mktemp` et
+lancent le validateur **strictement en lecture seule** `gso_lifecycle.py`.
+Aucun outil livré à l'opérateur n'applique une transformation de cycle de vie.
 
 Le contrôle de dérive (L6) n'exécute **jamais** de vrai `docker` : `GSO-T19` et
 `GSO-T20` utilisent une fausse CLI `docker` en lecture seule, qui **refuse

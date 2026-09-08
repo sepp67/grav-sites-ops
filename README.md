@@ -14,7 +14,9 @@ d'une instance Grav : ce mécanisme appartient exclusivement au rôle.
 **Construction en cours — lots L0 (harnais), L1 (données déclaratives),
 L2 (modèle de vault), L3 (sélecteur fermé + préflight), L4 (déploiement d'un
 site), L5 (redémarrage et arrêt d'un site), L6 (contrôle de dérive, lecture
-seule), L7 (mise à jour et rollback déclaratifs, gardes de persistance).**
+seule), L7 (mise à jour et rollback déclaratifs, gardes de persistance),
+L8 (cycle de vie documentaire : retrait, réactivation, validateur lecture
+seule).**
 
 Le dépôt reste **non opérationnel par défaut** : ni inventaire de production,
 ni vault opérationnel. Les seules données versionnées sont l'inventaire, le
@@ -65,6 +67,7 @@ Toutes les commandes ci-dessous sont couvertes par un test (`make test`).
 | `make check-all` | contrôle de dérive de tout le parc actif (lecture seule, non mutant) |
 | `make lint-registry` | valide le registre d'exemple (même validateur que `GSO-T06`) |
 | `make lint-vault` | valide le modèle de vault d'exemple (même validateur que `GSO-T07`) |
+| `make lint-lifecycle` | valide `registry/retired-sites.yml` + `reactivated-sites.yml` (lecture seule, L8) |
 | `make clean` | supprime les artefacts locaux non suivis |
 
 ## Structure
@@ -76,8 +79,8 @@ Makefile             points d'entrée documentés
 inventories/example/ inventaire + registre grav_sites (L1) + vault.yml.example (L2)
 inventories/production/  fourni hors dépôt ; jamais suivi par Git
 playbooks/           deploy/restart/stop-site.yml (mutations) + check-site/check-all.yml (contrôle L6) + _shared/
-registry/            historiques retired-sites / reactivated-sites (lot L8)
-scripts/             sélecteur + préflight (L3) ; deploy/restart/stop-site.sh + lib/site-mutation.sh (mutations, verrou) ; check-site/check-all.sh + lib/site-check.sh + lib/gso_classify.py (contrôle L6, sans verrou) ; lib/gso_validate.py = validateur partagé
+registry/            retired-sites.yml + reactivated-sites.yml (documentaires L8, hors group_vars, jamais auto-chargés)
+scripts/             sélecteur + préflight (L3) ; deploy/restart/stop-site.sh + lib/site-mutation.sh (mutations, verrou) ; check-site/check-all.sh + lib/site-check.sh + lib/gso_classify.py (contrôle L6, sans verrou) ; lib/gso_validate.py = validateur partagé ; lib/gso_lifecycle.py = validateur cycle de vie L8 (lecture seule)
 tests/               scripts GSO-T*, lanceur, helpers (tests/lib/), fixtures
 docs/                architecture, contrat, schémas registre/vault, exploitation, tests, versionnement, gouvernance
 .github/workflows/   CI (jobs statiques)

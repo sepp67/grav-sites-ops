@@ -11,6 +11,40 @@ et le versionnement sémantique.
 
 ## [Non publié]
 
+### Ajouté — lot L8 (cycle de vie documentaire : retrait, réactivation)
+
+- `registry/retired-sites.yml` (racine `retired_grav_sites`) et
+  `registry/reactivated-sites.yml` (racine `reactivated_sites`, historique
+  **append-only**, chaque clé → liste d'événements) : fichiers
+  **documentaires**, suivis par Git, **hors de `group_vars/`**, **jamais**
+  chargés automatiquement par Ansible, **jamais** une source de déploiement,
+  **sans secret** (contrat §7.7 ; GSO-REQ-028).
+- `scripts/lib/gso_lifecycle.py` : validateur **strictement en lecture seule**
+  (aucune écriture, aucun sous-processus, aucun `git`). Importe les primitives
+  de `gso_validate.py` **sans le modifier** (chemin `deploy` intact). Vérifie :
+  racines exactes, schéma fermé des fiches, dates ISO, absence de champ
+  `status` sur une fiche retirée (§21.9), historique chronologique
+  (append-only), et — quand un registre / vault est fourni — la **disjonction
+  stricte** `grav_sites` ∩ `retired_grav_sites` = ∅ (GSO-REQ-052),
+  `vault_grav_sites` ∩ `vault_retired_grav_sites` = ∅, secrets d'un projet
+  retiré hors de `vault_grav_sites` (GSO-REQ-073), et qu'aucune clé réactivée
+  ne subsiste dans `retired_grav_sites` (GSO-REQ-181).
+- `Makefile` : cible `make lint-lifecycle`.
+- `docs/LIFECYCLE-SCHEMA.md` : schéma normatif des deux registres + règles de
+  disjonction. `docs/OPERATIONS.md` : procédures **Git manuelles** de retrait
+  (contrat §21.6) et de réactivation (§21.8), et ce que L8 ne fait jamais.
+- Tests (fixtures synthétiques, sans Docker / réseau / connexion) :
+  `tests/gso-t21-retrait-non-destructif.sh`, `tests/gso-t22-disjonction-registres.sh`.
+- `.github/workflows/ci.yml` : job `static` étendu à `GSO-T21`, `GSO-T22` et
+  `make lint-lifecycle`.
+- `tests/fixtures/l8-lifecycle-ok/` : arborescence synthétique (2 actifs,
+  2 retirés, 2 réactivations) — jamais une donnée réelle.
+
+L8 **ne crée aucun playbook**, aucun script mutant, aucune cible `make` de
+transformation, aucun mécanisme de commit Git automatisé, aucune purge, aucune
+suppression de donnée persistante ou de VM. Le retrait et la réactivation
+restent des opérations **Git manuelles** vérifiées **après coup**.
+
 ### Ajouté — lot L7 (mise à jour, rollback, persistance)
 
 - **Aucun** nouveau playbook, wrapper, cible Makefile ou intention
