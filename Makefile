@@ -1,8 +1,11 @@
 # grav-sites-ops — points d'entree
 #
-# Lots L0-L6. Installation des dependances, tests, controles locaux en
+# Lots L0-L7. Installation des dependances, tests, controles locaux en
 # lecture seule (validate / preflight), mutations d'UN site (deploy,
 # restart, stop) et controle de derive LECTURE SEULE (check, check-all).
+# La mise a jour et le rollback (L7) sont des usages DECLARATIFS de
+# `make deploy` (modifier grav_sites.yml -> committer -> check -> deploy) :
+# aucune cible make update / make rollback.
 #
 # SITE est transmis tel quel au selecteur, entre guillemets, sans
 # reinterpretation shell (GSO-REQ-084). L'inventaire est fixe par le depot

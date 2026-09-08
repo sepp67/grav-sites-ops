@@ -53,6 +53,8 @@ jobs:
         run: bash tests/gso-t23-no-control-repository.sh
       - name: GSO-T24 — aucun chemin local ni secret suivi
         run: bash tests/gso-t24-no-local-paths-secrets.sh
+      - name: L7 — garde de persistance (opérations destructives interdites — GSO-REQ-102)
+        run: bash tests/l7-persistence-guard.sh
 
   role:
     name: Installation de la dépendance de rôle
@@ -68,7 +70,7 @@ jobs:
         run: bash tests/gso-t03-role-install.sh
 
   translate:
-    name: Traduction, actions, isolation et verrou (doublures — 100 % reproductible)
+    name: Traduction, actions, mise à jour/rollback, isolation et verrou (doublures — 100 % reproductible)
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -91,6 +93,10 @@ jobs:
         run: bash tests/l5-restart-stop.sh
       - name: L5 — intentions fermées (statique)
         run: bash tests/l5-action-closed.sh
+      - name: GSO-T17 — mise à jour A→B (déclarative), chemins persistants conservés
+        run: bash tests/gso-t17-update-a-to-b.sh
+      - name: GSO-T18 — rollback B→A explicitement déclaré, chemins persistants conservés
+        run: bash tests/gso-t18-rollback-b-to-a.sh
 
   drift:
     name: Contrôle de dérive — lecture seule (fausse CLI docker — 100 % reproductible)
