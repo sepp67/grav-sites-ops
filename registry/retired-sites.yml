@@ -1,0 +1,23 @@
+---
+# registry/retired-sites.yml — ensemble EXACT des projets ACTUELLEMENT retirés
+# du parc actif (contrat v0.5.0 §7.7, §21.6 ; GSO-REQ-028).
+#
+# Fichier DOCUMENTAIRE :
+#   - suivi par Git, hors de `group_vars/` ;
+#   - JAMAIS chargé automatiquement par Ansible ;
+#   - lu EXPLICITEMENT par `scripts/lib/gso_lifecycle.py` (lecture seule) ;
+#   - n'est JAMAIS une source de déploiement ;
+#   - ne contient AUCUN secret (les secrets archivés vivent dans
+#     `vault_retired_grav_sites`, jamais ici — GSO-REQ-028, GSO-REQ-073).
+#
+# Dictionnaire racine normatif : `retired_grav_sites` (jamais un autre nom).
+# Disjonction stricte avec `grav_sites` : une clé présente ici NE DOIT PAS
+# être active dans le registre `grav_sites` (GSO-REQ-052, sans exception).
+#
+# Schéma d'une fiche : voir `docs/LIFECYCLE-SCHEMA.md`.
+#
+# Aucun projet retiré à ce stade : l'inventaire de production n'est pas peuplé
+# (GSO-REQ-185). Les transformations retrait / réactivation sont éprouvées sur
+# des fixtures synthétiques (`tests/fixtures/l8-*`), jamais sur des données
+# réelles.
+retired_grav_sites: {}

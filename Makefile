@@ -1,11 +1,15 @@
 # grav-sites-ops — points d'entree
 #
-# Lots L0-L7. Installation des dependances, tests, controles locaux en
+# Lots L0-L8. Installation des dependances, tests, controles locaux en
 # lecture seule (validate / preflight), mutations d'UN site (deploy,
-# restart, stop) et controle de derive LECTURE SEULE (check, check-all).
+# restart, stop), controle de derive LECTURE SEULE (check, check-all) et
+# validation du cycle de vie documentaire (lint-lifecycle).
 # La mise a jour et le rollback (L7) sont des usages DECLARATIFS de
 # `make deploy` (modifier grav_sites.yml -> committer -> check -> deploy) :
 # aucune cible make update / make rollback.
+# Le retrait et la reactivation (L8) sont des operations Git MANUELLES,
+# documentees (docs/OPERATIONS.md) et verifiees APRES COUP par
+# `make lint-lifecycle` : aucun playbook, aucun outil de transformation.
 #
 # SITE est transmis tel quel au selecteur, entre guillemets, sans
 # reinterpretation shell (GSO-REQ-084). L'inventaire est fixe par le depot
@@ -94,6 +98,12 @@ lint-registry: ## Valide le registre d'exemple (validateur statique L1)
 .PHONY: lint-vault
 lint-vault: ## Valide le modele de vault d'exemple (validateur statique L2)
 	python3 scripts/lib/gso_validate.py vault --inventory inventories/example/hosts.yml
+
+.PHONY: lint-lifecycle
+lint-lifecycle: ## Valide les registres retire / reactive suivis (lecture seule, L8)
+	python3 scripts/lib/gso_lifecycle.py \
+	  --retired registry/retired-sites.yml \
+	  --reactivated registry/reactivated-sites.yml
 
 .PHONY: test-role
 test-role: ## Verifie l'installation du role (acces reseau requis)

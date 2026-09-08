@@ -1,0 +1,26 @@
+---
+# registry/reactivated-sites.yml — HISTORIQUE APPEND-ONLY des réactivations
+# (contrat v0.5.0 §7.7, §21.8-21.9 ; GSO-REQ-052, GSO-REQ-181).
+#
+# Fichier DOCUMENTAIRE :
+#   - suivi par Git, hors de `group_vars/` ;
+#   - JAMAIS chargé automatiquement par Ansible ;
+#   - lu EXPLICITEMENT par `scripts/lib/gso_lifecycle.py` (lecture seule) ;
+#   - n'est JAMAIS une source de déploiement ;
+#   - ne contient AUCUN secret.
+#
+# Dictionnaire racine normatif : `reactivated_sites` (jamais un autre nom).
+# Chaque clé (nom d'hôte) est associée à une LISTE d'événements datés : un
+# projet retiré puis réactivé plusieurs fois conserve l'historique COMPLET,
+# sans perte ni réécriture (append-only — GSO-REQ-181).
+#
+# Ce fichier ne fait JAMAIS réapparaître une clé dans `retired_grav_sites` :
+# une clé présente ici peut être active (`grav_sites`) ou, si elle a été
+# retirée à nouveau plus tard, présente dans `retired_grav_sites` — jamais les
+# deux à la fois (GSO-REQ-052). Une fiche `retired_grav_sites` ne porte
+# JAMAIS de statut `reactivated` (§21.9).
+#
+# Schéma d'un événement : voir `docs/LIFECYCLE-SCHEMA.md`.
+#
+# Aucune réactivation à ce stade : l'inventaire de production n'est pas peuplé.
+reactivated_sites: {}
