@@ -33,7 +33,20 @@ gso_isolate_runtime "$tmp"
 
 LC="$REPO_ROOT/scripts/lib/gso_lifecycle.py"
 FIX="$REPO_ROOT/tests/fixtures/l8-lifecycle-ok"
-GV="$FIX/inventories/production/group_vars/all"
+REG="$FIX/inventories/production/group_vars/all/grav_sites.yml"
+
+# Le vault de fixture est git-ignoré (**/vault.yml) : synthétisé dans $tmp.
+# Marqueurs synthétiques uniquement, jamais un secret réel. Cohérent avec la
+# fixture suivie : actifs grav-alpha/grav-delta, retirés grav-gamma/grav-omega.
+VAULT="$tmp/vault.yml"
+cat > "$VAULT" <<'YML'
+vault_grav_sites:
+  grav-alpha: {admin_user: alpha-admin, admin_password: SYNTH-L8T22-ALPHA, admin_email: alpha@example.invalid}
+  grav-delta: {admin_user: delta-admin, admin_password: SYNTH-L8T22-DELTA, admin_email: delta@example.invalid}
+vault_retired_grav_sites:
+  grav-gamma: {admin_user: gamma-admin, admin_password: SYNTH-L8T22-GAMMA, admin_email: gamma@example.invalid}
+  grav-omega: {admin_user: omega-admin, admin_password: SYNTH-L8T22-OMEGA, admin_email: omega@example.invalid}
+YML
 
 lc() {  # <label> <ok|ko> <args...>
   local label="$1" want="$2"; shift 2
@@ -51,7 +64,7 @@ lc() {  # <label> <ok|ko> <args...>
 # --------------------------------------------------------------------------
 lc "état actif / retiré / réactivé cohérent" ok \
   --retired "$FIX/registry/retired-sites.yml" --reactivated "$FIX/registry/reactivated-sites.yml" \
-  --registry "$GV/grav_sites.yml" --vault "$GV/vault.yml"
+  --registry "$REG" --vault "$VAULT"
 
 # grav-delta : réactivé, actif, absent de retired_grav_sites
 python3 -c '
@@ -60,7 +73,7 @@ ret = yaml.safe_load(open(sys.argv[1]))["retired_grav_sites"]
 act = yaml.safe_load(open(sys.argv[2]))["grav_sites"]
 rea = yaml.safe_load(open(sys.argv[3]))["reactivated_sites"]
 assert "grav-delta" in rea and "grav-delta" in act and "grav-delta" not in ret
-' "$FIX/registry/retired-sites.yml" "$GV/grav_sites.yml" "$FIX/registry/reactivated-sites.yml" \
+' "$FIX/registry/retired-sites.yml" "$REG" "$FIX/registry/reactivated-sites.yml" \
   && pass "GSO-REQ-181 : clé réactivée (grav-delta) active et ABSENTE de retired_grav_sites" \
   || fail "GSO-REQ-181 : clé réactivée encore retirée"
 
@@ -88,7 +101,7 @@ d["reactivated_sites"]["grav-gamma"] = [{
 yaml.safe_dump(d, open(sys.argv[2], "w"), sort_keys=False)
 PY
 # grav_sites APRÈS : grav-gamma replacé dans l'actif
-python3 - "$GV/grav_sites.yml" "$A/gv/grav_sites.yml" <<'PY'
+python3 - "$REG" "$A/gv/grav_sites.yml" <<'PY'
 import sys, yaml
 d = yaml.safe_load(open(sys.argv[1]))
 d["grav_sites"]["grav-gamma"] = {
@@ -100,7 +113,7 @@ d["grav_sites"]["grav-gamma"] = {
 yaml.safe_dump(d, open(sys.argv[2], "w"), sort_keys=False)
 PY
 # vault APRÈS : secrets de grav-gamma déplacés vers vault_grav_sites
-python3 - "$GV/vault.yml" "$A/gv/vault.yml" <<'PY'
+python3 - "$VAULT" "$A/gv/vault.yml" <<'PY'
 import sys, yaml
 d = yaml.safe_load(open(sys.argv[1]))
 d["vault_grav_sites"]["grav-gamma"] = d["vault_retired_grav_sites"].pop("grav-gamma")
@@ -153,7 +166,7 @@ python3 -c 'import yaml,sys; assert len(yaml.safe_load(open(sys.argv[1]))["react
 # 4. Rejets — incohérences significatives
 # --------------------------------------------------------------------------
 # 4a. clé simultanément active et retirée
-python3 - "$GV/grav_sites.yml" "$tmp/collide.yml" <<'PY'
+python3 - "$REG" "$tmp/collide.yml" <<'PY'
 import sys, yaml
 d = yaml.safe_load(open(sys.argv[1]))
 d["grav_sites"]["grav-gamma"] = {"project_name":"x","image":"r/x","version":"1","digest":"",
@@ -162,10 +175,10 @@ yaml.safe_dump(d, open(sys.argv[2], "w"), sort_keys=False)
 PY
 lc "clé simultanément active et retirée (GSO-REQ-052)" ko \
   --retired "$FIX/registry/retired-sites.yml" --reactivated "$FIX/registry/reactivated-sites.yml" \
-  --registry "$tmp/collide.yml" --vault "$GV/vault.yml"
+  --registry "$tmp/collide.yml" --vault "$VAULT"
 
 # 4b. site actif dans vault_retired_grav_sites
-python3 - "$GV/vault.yml" "$tmp/vault-leak.yml" <<'PY'
+python3 - "$VAULT" "$tmp/vault-leak.yml" <<'PY'
 import sys, yaml
 d = yaml.safe_load(open(sys.argv[1]))
 d["vault_retired_grav_sites"]["grav-alpha"] = {"admin_user":"a","admin_password":"SYNTH","admin_email":"a@x.invalid"}
@@ -173,10 +186,10 @@ yaml.safe_dump(d, open(sys.argv[2], "w"), sort_keys=False)
 PY
 lc "site actif présent dans vault_retired_grav_sites" ko \
   --retired "$FIX/registry/retired-sites.yml" --reactivated "$FIX/registry/reactivated-sites.yml" \
-  --registry "$GV/grav_sites.yml" --vault "$tmp/vault-leak.yml"
+  --registry "$REG" --vault "$tmp/vault-leak.yml"
 
 # 4c. site retiré resté dans vault_grav_sites (GSO-REQ-073)
-python3 - "$GV/vault.yml" "$tmp/vault-stuck.yml" <<'PY'
+python3 - "$VAULT" "$tmp/vault-stuck.yml" <<'PY'
 import sys, yaml
 d = yaml.safe_load(open(sys.argv[1]))
 d["vault_grav_sites"]["grav-gamma"] = {"admin_user":"g","admin_password":"SYNTH","admin_email":"g@x.invalid"}
@@ -184,7 +197,7 @@ yaml.safe_dump(d, open(sys.argv[2], "w"), sort_keys=False)
 PY
 lc "site retiré resté dans vault_grav_sites (GSO-REQ-073)" ko \
   --retired "$FIX/registry/retired-sites.yml" --reactivated "$FIX/registry/reactivated-sites.yml" \
-  --registry "$GV/grav_sites.yml" --vault "$tmp/vault-stuck.yml"
+  --registry "$REG" --vault "$tmp/vault-stuck.yml"
 
 # 4d. racine reactivated inconnue
 printf 'reactivations:\n  grav-x: []\n' > "$tmp/bad-react-root.yml"
@@ -225,7 +238,7 @@ lc "clé réactivée subsistant dans retired_grav_sites (GSO-REQ-181)" ko \
 sig() { find "$1" -type f -exec stat -c '%n %Y %s' {} \; | sort | sha1sum; }
 b="$(sig "$FIX")"
 python3 "$LC" --retired "$FIX/registry/retired-sites.yml" --reactivated "$FIX/registry/reactivated-sites.yml" \
-  --registry "$GV/grav_sites.yml" --vault "$GV/vault.yml" >/dev/null 2>&1
+  --registry "$REG" --vault "$VAULT" >/dev/null 2>&1
 [ "$b" = "$(sig "$FIX")" ] && pass "validateur : lecture seule (fixture inchangée)" || fail "fixture modifiée par le validateur"
 
 cur="$(cd "$REPO_ROOT" && git status --porcelain -- tests/fixtures/ registry/)"

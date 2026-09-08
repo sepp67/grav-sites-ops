@@ -30,7 +30,20 @@ gso_isolate_runtime "$tmp"
 
 LC="$REPO_ROOT/scripts/lib/gso_lifecycle.py"
 FIX="$REPO_ROOT/tests/fixtures/l8-lifecycle-ok"
+REG="$FIX/inventories/production/group_vars/all/grav_sites.yml"
 code_only() { grep -vE '^[[:space:]]*#' "$1"; }
+
+# Le vault de fixture est git-ignoré (**/vault.yml) : on le synthétise dans
+# $tmp. Marqueurs synthétiques uniquement, jamais un secret réel.
+VAULT="$tmp/vault.yml"
+cat > "$VAULT" <<'YML'
+vault_grav_sites:
+  grav-alpha: {admin_user: alpha-admin, admin_password: SYNTH-L8T21-ALPHA, admin_email: alpha@example.invalid}
+  grav-delta: {admin_user: delta-admin, admin_password: SYNTH-L8T21-DELTA, admin_email: delta@example.invalid}
+vault_retired_grav_sites:
+  grav-gamma: {admin_user: gamma-admin, admin_password: SYNTH-L8T21-GAMMA, admin_email: gamma@example.invalid}
+  grav-omega: {admin_user: omega-admin, admin_password: SYNTH-L8T21-OMEGA, admin_email: omega@example.invalid}
+YML
 
 # --------------------------------------------------------------------------
 # 1. Gardes statiques — aucun outil de transformation du cycle de vie
@@ -91,14 +104,14 @@ T="$tmp/after"; mkdir -p "$T/registry" "$T/gv"
 cp "$FIX/registry/reactivated-sites.yml" "$T/registry/reactivated-sites.yml"
 
 # grav_sites APRÈS : grav-alpha retiré du registre actif
-python3 - "$FIX/inventories/production/group_vars/all/grav_sites.yml" "$T/gv/grav_sites.yml" <<'PY'
+python3 - "$REG" "$T/gv/grav_sites.yml" <<'PY'
 import sys, yaml
 d = yaml.safe_load(open(sys.argv[1]))
 d["grav_sites"].pop("grav-alpha", None)
 yaml.safe_dump(d, open(sys.argv[2], "w"), sort_keys=False)
 PY
 # vault APRÈS : secrets de grav-alpha déplacés vers vault_retired_grav_sites
-python3 - "$FIX/inventories/production/group_vars/all/vault.yml" "$T/gv/vault.yml" <<'PY'
+python3 - "$VAULT" "$T/gv/vault.yml" <<'PY'
 import sys, yaml
 d = yaml.safe_load(open(sys.argv[1]))
 e = d["vault_grav_sites"].pop("grav-alpha")
@@ -141,7 +154,7 @@ lc ok --retired "$T/registry/retired-sites.yml" --reactivated "$T/registry/react
       --registry "$T/gv/grav_sites.yml" --vault "$T/gv/vault.yml"
 
 # comparaison avant/après : grav-alpha disparu de l'actif => DOIT être dans retired (GSO-REQ-044/178)
-before_active="$(python3 -c 'import yaml,sys;print(",".join(yaml.safe_load(open(sys.argv[1]))["grav_sites"]))' "$FIX/inventories/production/group_vars/all/grav_sites.yml")"
+before_active="$(python3 -c 'import yaml,sys;print(",".join(yaml.safe_load(open(sys.argv[1]))["grav_sites"]))' "$REG")"
 after_active="$(python3 -c 'import yaml,sys;print(",".join(yaml.safe_load(open(sys.argv[1]))["grav_sites"]))' "$T/gv/grav_sites.yml")"
 after_retired="$(python3 -c 'import yaml,sys;print(",".join(yaml.safe_load(open(sys.argv[1]))["retired_grav_sites"]))' "$T/registry/retired-sites.yml")"
 if [[ ",$before_active," == *",grav-alpha,"* && ",$after_active," != *",grav-alpha,"* && ",$after_retired," == *",grav-alpha,"* ]]; then
@@ -165,7 +178,7 @@ assert e["preservation"]["vm_preserved"] is True, e
 # 3. Incohérences de retrait -> rejetées
 # --------------------------------------------------------------------------
 # 3a. grav-alpha resté actif ET retiré
-cp "$FIX/inventories/production/group_vars/all/grav_sites.yml" "$tmp/still-active.yml"
+cp "$REG" "$tmp/still-active.yml"
 LABEL="retrait incohérent : clé encore active ET retirée (GSO-REQ-052)"
 lc ko --retired "$T/registry/retired-sites.yml" --reactivated "$T/registry/reactivated-sites.yml" \
       --registry "$tmp/still-active.yml" --vault "$T/gv/vault.yml"
@@ -173,7 +186,7 @@ lc ko --retired "$T/registry/retired-sites.yml" --reactivated "$T/registry/react
 # 3b. secrets restés dans vault_grav_sites
 LABEL="retrait incohérent : secrets non déplacés (GSO-REQ-073)"
 lc ko --retired "$T/registry/retired-sites.yml" --reactivated "$T/registry/reactivated-sites.yml" \
-      --registry "$T/gv/grav_sites.yml" --vault "$FIX/inventories/production/group_vars/all/vault.yml"
+      --registry "$T/gv/grav_sites.yml" --vault "$VAULT"
 
 # 3c. fiche retirée contenant un secret
 python3 - "$T/registry/retired-sites.yml" "$tmp/retired-secret.yml" <<'PY'
@@ -205,8 +218,8 @@ lc ko --retired "$tmp/bad-date.yml" --reactivated "$T/registry/reactivated-sites
 # --------------------------------------------------------------------------
 before="$(cd "$FIX" && find . -type f -exec stat -c '%n %Y %s' {} \; | sort | sha1sum)"
 python3 "$LC" --retired "$FIX/registry/retired-sites.yml" --reactivated "$FIX/registry/reactivated-sites.yml" \
-  --registry "$FIX/inventories/production/group_vars/all/grav_sites.yml" \
-  --vault "$FIX/inventories/production/group_vars/all/vault.yml" >/dev/null 2>&1
+  --registry "$REG" \
+  --vault "$VAULT" >/dev/null 2>&1
 after="$(cd "$FIX" && find . -type f -exec stat -c '%n %Y %s' {} \; | sort | sha1sum)"
 [ "$before" = "$after" ] && pass "validateur : la fixture n'est pas modifiée (lecture seule)" || fail "la fixture a changé"
 

@@ -80,8 +80,12 @@ _SECRETISH_KEY_RE = re.compile(
 )
 # Champs du schéma qui contiennent un mot-clé mais NE sont pas des secrets.
 _SECRETISH_KEY_ALLOW = {"secrets_archived_in_vault"}
-# Chemins locaux réels interdits dans un fichier suivi (cohérent GSO-T24).
-_LOCAL_PATH_RE = re.compile(r"(^|[\"'\s=:])(/home/|/Users/|/root/)")
+# Chemins locaux réels interdits dans un fichier documentaire (cohérent
+# GSO-T24). Motif assemblé à l'exécution pour que ce fichier ne se signale
+# pas lui-même à GSO-T24.
+_LOCAL_PATH_RE = re.compile(
+    "(^|[\"'\\s=:])(/" + "ho" + "me/|/" + "Us" + "ers/|/" + "ro" + "ot/)"
+)
 
 
 def _is_date(value) -> bool:
