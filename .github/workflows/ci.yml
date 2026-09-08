@@ -55,6 +55,12 @@ jobs:
         run: bash tests/gso-t24-no-local-paths-secrets.sh
       - name: L7 — garde de persistance (opérations destructives interdites — GSO-REQ-102)
         run: bash tests/l7-persistence-guard.sh
+      - name: GSO-T21 — retrait déclaré sans tâche destructive
+        run: bash tests/gso-t21-retrait-non-destructif.sh
+      - name: GSO-T22 — registres actif / retiré disjoints, y compris après réactivation
+        run: bash tests/gso-t22-disjonction-registres.sh
+      - name: L8 — validation des registres retiré / réactivé suivis
+        run: make lint-lifecycle
 
   role:
     name: Installation de la dépendance de rôle
