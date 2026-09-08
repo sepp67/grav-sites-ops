@@ -1,0 +1,39 @@
+---
+# FIXTURE L8 — ensemble EXACT des projets actuellement retirés.
+# grav-gamma : retiré une fois. grav-omega : retiré à nouveau après une
+# réactivation antérieure (voir reactivated-sites.yml). Aucun secret.
+retired_grav_sites:
+  grav-gamma:
+    project_name: fixture-gamma
+    retired_at: "2026-07-15"
+    former_inventory_host: grav-gamma
+    former_ansible_host: 192.0.2.32
+    former_base_directory: /opt/fixture-gamma
+    container_name: fixture-gamma
+    last_deployment:
+      image: registry.example.invalid/fixture/grav-gamma
+      version: "0.9.0"
+      digest: ""
+    preservation:
+      vm_status: stopped
+      vm_preserved: true
+      persistent_data_preserved: true
+      secrets_archived_in_vault: true
+    reason: Projet mis de côté (fixture)
+  grav-omega:
+    project_name: fixture-omega
+    retired_at: "2026-09-01"
+    former_inventory_host: grav-omega
+    former_ansible_host: 192.0.2.35
+    former_base_directory: /opt/fixture-omega
+    container_name: fixture-omega
+    last_deployment:
+      image: registry.example.invalid/fixture/grav-omega
+      version: "3.0.0"
+      digest: ""
+    preservation:
+      vm_status: stopped
+      vm_preserved: true
+      persistent_data_preserved: true
+      secrets_archived_in_vault: true
+    reason: Retiré une seconde fois (fixture)

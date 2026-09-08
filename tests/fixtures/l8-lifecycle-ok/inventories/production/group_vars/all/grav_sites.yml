@@ -1,0 +1,23 @@
+---
+# FIXTURE L8 — registre actif cohérent avec hosts.yml (grav-alpha, grav-delta).
+grav_sites:
+  grav-alpha:
+    project_name: fixture-alpha
+    image: registry.example.invalid/fixture/grav-alpha
+    version: "1.0.0"
+    digest: ""
+    container_name: fixture-alpha
+    base_directory: /opt/fixture-alpha
+    bind_address: 192.0.2.31
+    http_port: 8080
+    state: started
+  grav-delta:
+    project_name: fixture-delta
+    image: registry.example.invalid/fixture/grav-delta
+    version: "2.3.0"
+    digest: ""
+    container_name: fixture-delta
+    base_directory: /opt/fixture-delta
+    bind_address: 192.0.2.34
+    http_port: 8083
+    state: started

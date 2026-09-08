@@ -1,0 +1,24 @@
+---
+# FIXTURE L8 — historique APPEND-ONLY des réactivations.
+#   grav-delta : retiré (2026-05-01) puis réactivé (2026-06-10) -> aujourd'hui ACTIF.
+#   grav-omega : retiré (2026-06-01) puis réactivé (2026-07-20) puis RETIRÉ à
+#                nouveau (2026-09-01, voir retired-sites.yml). Deux entrées ne
+#                sont pas nécessaires : une seule réactivation a eu lieu.
+# Aucune clé de ce fichier ne « réapparaît » dans retired_grav_sites du fait de
+# ce fichier : grav-omega y figure parce qu'il a été retiré APRÈS sa
+# réactivation (§21.9, GSO-REQ-052).
+reactivated_sites:
+  grav-delta:
+    - reactivated_at: "2026-06-10"
+      project_name: fixture-delta
+      former_inventory_host: grav-delta
+      previous_retirement:
+        retired_at: "2026-05-01"
+        reason: Pause temporaire (fixture)
+  grav-omega:
+    - reactivated_at: "2026-07-20"
+      project_name: fixture-omega
+      former_inventory_host: grav-omega
+      previous_retirement:
+        retired_at: "2026-06-01"
+        reason: Première mise de côté (fixture)
