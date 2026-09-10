@@ -40,11 +40,11 @@ inventée**.
 
 ## 2. Batterie reproductible — `make test-reproducible`
 
-**Dernière exécution observée** — commit `RESULTS_COMMIT_L11`, date 2026-09-10,
+**Dernière exécution observée** — commit `3d48a0f`, date 2026-09-10,
 environnement §1.
 **Commande :** `make clean && make install-role && make test-reproducible`.
 **Résultat global : 35 tests exécutés, 35 réussis, 0 échec**
-(`GSO-T15` non inclus — voir §3 ; sortie du lanceur : `RESULTS_REPRO_L11`).
+(`GSO-T15` non inclus — voir §3 ; sortie du lanceur : `Total : 35   Reussis : 35   Echecs : 0`).
 
 | Test | Scénario | Nature | Résultat |
 |---|---|---|---|
@@ -85,7 +85,7 @@ environnement §1.
 | `l11-acceptance-guards` | premier commit sans capacité de déploiement, aucune automatisation push/tag/release, `ci.yml` sans déclencheur release, commandes documentées = cibles réelles, migration réelle bloquée, licence signalée (GSO-REQ-158/159/183..192/202) | statique | OK |
 
 `make lint` (`yamllint --strict` + `ansible-lint --offline`) : **0 faute**,
-22 fichiers traités sur 90 rencontrés, profil `production` franchi — même
+22 fichiers traités sur 92 rencontrés, profil `production` franchi — même
 commit, même environnement.
 
 ---
@@ -95,12 +95,12 @@ commit, même environnement.
 **Non exécuté par la CI** (aucune image `grav-runtime` garantie sur un runner,
 aucun identifiant GHCR — GSO-REQ-108). Test d'acceptation **local**.
 
-**Dernière exécution observée** — commit `RESULTS_COMMIT_L11`, date 2026-09-10,
+**Dernière exécution observée** — commit `3d48a0f`, date 2026-09-10,
 environnement §1 (Docker Engine 29.1.3, image `1.0.4` présente localement).
 Réexécuté pour l'acceptation finale L11 (contrat §19.8 étape 2), même si le
 chemin `deploy` est inchangé.
 **Commande :** `make install-role && make test-functional`.
-**Résultat : OK** — conteneur éphémère `RESULTS_T15_CONTAINER`,
+**Résultat : OK** — conteneur éphémère `gso-t15-6aa2a43723724829012`,
 port `127.0.0.1:18715` ; `http://127.0.0.1:18715/admin` → 200 ; image déployée
 par digest épinglé
 `sha256:d130f333c6566a26856c271656b21ce2d06793f9c4af24e620b53da14e4d640f` ;
