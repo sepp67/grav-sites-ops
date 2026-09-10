@@ -183,6 +183,20 @@ ENTRY: dict[str, tuple[str, str]] = {
     "148": ("GSO-T21 + l10-cleanup (retrait simulé)", "T"),
     "149": ("l10-cleanup (zéro résidu) + GSO-T15 §10", "T"),
     "150": ("docs/COMPLIANCE-MATRIX.md + docs/TEST-RESULTS.md", "S"),
+    # --- L11 (acceptation) : revues documentaires exécutées + 3 bloquées ---
+    "158": ("docs/ACCEPTANCE.md §3 — commande de tag et SHA candidat préparés ; CI distante verte requise (non exécutée)", "N"),
+    "159": ("l11-acceptance-guards (ci.yml sans déclencheur release/tag ; aucune étape de déploiement en CI)", "D"),
+    "183": ("l11-acceptance-guards + GSO-T23 + REGISTRY-SCHEMA.md (aucune notion de publication dans le registre)", "D"),
+    "184": ("audit-grav-sites-ops/01..08 antérieurs au premier commit de construction ; docs/GOVERNANCE.md", "D"),
+    "185": ("l11-acceptance-guards (premier commit 4a4eab0 = README.md seul, aucune capacité de déploiement)", "D"),
+    "186": ("revue de matrice — aucun TEST GAP : sélection GSO-T08..T12, secrets GSO-T07/T14/T24, persistance GSO-T17/T18, rôle GSO-T13/T15, non-contact GSO-T12/T23", "D"),
+    "187": ("l11-acceptance-guards + docs/ACCEPTANCE.md §4 (gate de release conditionné à la CI bloquante — job conformance) ; observation différée à la CI distante", "D"),
+    "188": ("conformité du dépôt établie sur fixtures (L9 + matrice) ; conformité opérationnelle par site réel différée (migration autorisée séparément)", "N"),
+    "189": ("l11-acceptance-guards (21 cibles make documentees = 21 reelles ; exemples non executables signales)", "D"),
+    "190": ("08-preflight-construction.md §5 (204 cartographiees) + docs/COMPLIANCE-MATRIX.md (make matrix-check)", "D"),
+    "191": ("audit-grav-sites-ops/ n'a produit aucun commit ; chaque lot L0-L11 autorise separement avant modification", "D"),
+    "192": ("l11-acceptance-guards (main ahead de origin/main jamais pousse ; aucune branche ni tag pousse ; aucune automatisation push/tag/release)", "N"),
+    "202": ("contrat v0.5.0 §23.10 — approbation humaine explicite du 2026-09-05 ; README + docs/GOVERNANCE.md", "D"),
 }
 
 LABEL = {
@@ -215,7 +229,8 @@ def render() -> str:
     w("# Matrice de conformité — 204 exigences `GSO-REQ`\n")
     w("Résumé normatif : contrat architectural `v0.5.0` (`docs/CONTRAT-ARCHITECTURAL.md`).")
     w("En cas de divergence, le contrat fait foi. Livré et tenu à jour par le **lot L10**")
-    w("(GSO-REQ-150) ; régénérable par `make matrix`, vérifiable par `make matrix-check`.\n")
+    w("(GSO-REQ-150) ; les 13 exigences L11 sont évaluées par le **lot L11** (voir")
+    w("[`ACCEPTANCE.md`](ACCEPTANCE.md)). Régénérable par `make matrix`, vérifiable par `make matrix-check`.\n")
     w("Cinq niveaux, **distincts** :\n")
     w("- **Satisfait et testé** — un `GSO-T01`–`GSO-T24` ou un garde-fou non numéroté")
     w("  (`l4-`…`l10-`) exerce l'exigence ; exécution consignée dans [`TEST-RESULTS.md`](TEST-RESULTS.md).")
@@ -226,10 +241,11 @@ def render() -> str:
     w("  gouvernance / de procédure.")
     w("- **Partiel** — une partie testée, une autre **différée** à une exécution réelle")
     w("  autorisée (GSO-REQ-091, 078).")
-    w("- **Non encore démontré (L11)** — relève du lot **L11** (acceptation & release),")
-    w("  **non démarré**.\n")
+    w("- **Non encore démontré (L11)** — après la revue d'acceptation L11, il ne reste")
+    w("  que ce qui exige une action **externe ou humaine non accordée** : un `push`, une")
+    w("  CI distante verte, une migration réelle (GSO-REQ-158, 188, 192).\n")
     w("Les preuves issues d'un **lot antérieur** ou du **rôle** `sepp67.grav_site` sont")
-    w("**attribuées à leur véritable mécanisme**, pas à L10.\n")
+    w("**attribuées à leur véritable mécanisme**, pas à L10 ni à L11.\n")
     w("---\n")
     w("## Synthèse\n")
     w("| Statut | Nombre |")
@@ -238,11 +254,12 @@ def render() -> str:
         w(f"| {LABEL[k]} | {c.get(k, 0)} |")
     w(f"| **Total** | **{sum(c.values())}** |\n")
     adressed = c["T"] + c["S"] + c["D"] + c["P"]
-    w(f"**{adressed} / 204** exigences sont adressées par les lots L0–L10 (aucune en")
-    w(f"échec). Les **{c['N']}** exigences L11 sont **non démontrées** : revue")
-    w("d'acceptation §22, gates de release, préparation de tag — lot **non autorisé**.")
-    w("La première release ne peut être préparée tant que ces exigences ne sont pas")
-    w("traitées (contrat §18.16, GSO-REQ-150).\n")
+    w(f"**{adressed} / 204** exigences sont adressées par les lots L0–L11 (aucune en")
+    w(f"échec). Les **{c['N']}** restantes — **GSO-REQ-158, 188, 192** — sont **non")
+    w("démontrées** : elles exigent un `push`, une CI distante verte ou une migration")
+    w("réelle, autorisations **distinctes non accordées**. La **construction locale est")
+    w("acceptée** ; publication, release et migration restent **bloquées** — détail et")
+    w("conditions dans [`ACCEPTANCE.md`](ACCEPTANCE.md) (contrat §22, GSO-REQ-150).\n")
     w("## Matrice détaillée (204 exigences)\n")
     w("| # | Lot | Intitulé | Preuve principale | Statut |")
     w("|---|---|---|---|---|")

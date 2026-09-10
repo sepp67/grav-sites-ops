@@ -80,6 +80,8 @@ jobs:
         run: bash tests/l10-ci-blocking.sh
       - name: L10 — matrice de conformité 204/204 à jour (GSO-REQ-150)
         run: make matrix-check
+      - name: L11 — gardes d'acceptation (GSO-REQ-158/159/183..192/202)
+        run: bash tests/l11-acceptance-guards.sh
 
   role:
     name: Installation de la dépendance de rôle

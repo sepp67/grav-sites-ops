@@ -1,7 +1,8 @@
 # Résultats de tests — `grav-sites-ops`
 
 Résumé normatif : contrat architectural `v0.5.0`, section 18 (`docs/CONTRAT-ARCHITECTURAL.md`).
-En cas de divergence, le contrat fait foi. Livré par le **lot L10**.
+En cas de divergence, le contrat fait foi. Livré par le **lot L10**, complété
+par le **lot L11** (acceptation — §5).
 
 Ce document consigne des **exécutions réellement observées** (GSO-REQ-136,
 GSO-REQ-147) : pour chaque test, la dernière exécution constatée, la commande,
@@ -10,9 +11,11 @@ inventée**.
 
 > **CI GitHub Actions — non observée.** `.github/workflows/ci.yml` est validé
 > **statiquement et localement** (`tests/l10-ci-blocking.sh`, `yamllint`,
-> `GSO-T01`). Le dépôt distant n'existe pas encore et **aucun `push` n'a été
-> effectué** : la CI distante **n'a donc jamais été exécutée** et son
-> caractère bloquant **n'est pas observé en pratique** (GSO-REQ-147). Sa
+> `GSO-T01`). Le dépôt distant `sepp67/grav-sites-ops` existe mais ne contient
+> que le commit initial ; **aucun `push`** de `main` ni d'une branche de
+> construction n'a été effectué : la CI distante **n'a donc jamais été
+> exécutée** et son caractère bloquant **n'est pas observé en pratique**
+> (GSO-REQ-147). Sa
 > configuration est conçue pour être bloquante (job `conformance` dépendant de
 > tous les jobs, aucun `continue-on-error`) et non opérationnelle (aucun
 > inventaire de production, aucun vault, aucune clé — GSO-REQ-030/046/058/139).
@@ -37,11 +40,11 @@ inventée**.
 
 ## 2. Batterie reproductible — `make test-reproducible`
 
-**Dernière exécution observée** — commit `b859612`, date 2026-09-10,
+**Dernière exécution observée** — commit `RESULTS_COMMIT_L11`, date 2026-09-10,
 environnement §1.
 **Commande :** `make clean && make install-role && make test-reproducible`.
-**Résultat global : 34 tests exécutés, 34 réussis, 0 échec**
-(`GSO-T15` non inclus — voir §3 ; sortie du lanceur : `Total : 34   Reussis : 34   Echecs : 0`).
+**Résultat global : 35 tests exécutés, 35 réussis, 0 échec**
+(`GSO-T15` non inclus — voir §3 ; sortie du lanceur : `RESULTS_REPRO_L11`).
 
 | Test | Scénario | Nature | Résultat |
 |---|---|---|---|
@@ -79,6 +82,7 @@ environnement §1.
 | `l10-multisite-isolation` | trois sites, A→B→A sans fuite d'état, `no_log` sous `-vv`, résolution par `inventory_hostname` (GSO-REQ-142) | dynamique isolé | OK |
 | `l10-cleanup` | gardes statiques (trap, préfixe, aucun nettoyage non borné) + preuve dynamique zéro résidu (GSO-REQ-148/149) | dynamique + statique | OK |
 | `l10-ci-blocking` | CI sans `continue-on-error`, porte de conformité, non opérationnelle, interpréteurs bornés, absence CI observée signalée | statique | OK |
+| `l11-acceptance-guards` | premier commit sans capacité de déploiement, aucune automatisation push/tag/release, `ci.yml` sans déclencheur release, commandes documentées = cibles réelles, migration réelle bloquée, licence signalée (GSO-REQ-158/159/183..192/202) | statique | OK |
 
 `make lint` (`yamllint --strict` + `ansible-lint --offline`) : **0 faute**,
 22 fichiers traités sur 90 rencontrés, profil `production` franchi — même
@@ -91,12 +95,14 @@ commit, même environnement.
 **Non exécuté par la CI** (aucune image `grav-runtime` garantie sur un runner,
 aucun identifiant GHCR — GSO-REQ-108). Test d'acceptation **local**.
 
-**Dernière exécution observée** — commit `b859612`, date 2026-09-10,
+**Dernière exécution observée** — commit `RESULTS_COMMIT_L11`, date 2026-09-10,
 environnement §1 (Docker Engine 29.1.3, image `1.0.4` présente localement).
+Réexécuté pour l'acceptation finale L11 (contrat §19.8 étape 2), même si le
+chemin `deploy` est inchangé.
 **Commande :** `make install-role && make test-functional`.
-**Résultat : OK** — conteneur éphémère `gso-t15-6aa297d31552558628`,
-réseau `gso-t15-6aa297d31552558628_default`, port `127.0.0.1:18715` ;
-`http://127.0.0.1:18715/admin` → 200 ; image déployée par digest épinglé
+**Résultat : OK** — conteneur éphémère `RESULTS_T15_CONTAINER`,
+port `127.0.0.1:18715` ; `http://127.0.0.1:18715/admin` → 200 ; image déployée
+par digest épinglé
 `sha256:d130f333c6566a26856c271656b21ce2d06793f9c4af24e620b53da14e4d640f` ;
 conteneur / réseau / verrou / répertoire temporaire supprimés en fin de test
 (`aucun conteneur, réseau, journal, répertoire temporaire ou verrou résiduel`).
@@ -119,8 +125,34 @@ rapport d'exécution du lot concerné.
 
 | Élément | Limitation | Suivi |
 |---|---|---|
-| CI GitHub Actions | **jamais exécutée à distance** (aucun `push`) — bloquant/non bloquant non observé en pratique | L11 (gate release) — après création du dépôt distant, autorisation de publication distincte |
+| CI GitHub Actions | **jamais exécutée à distance** (aucun `push`) — bloquant/non bloquant non observé en pratique | autorisation de **premier `push`** distincte ; le dépôt distant `sepp67/grav-sites-ops` existe (commit initial seul) |
 | `GSO-REQ-070` / `161` (sauvegarde vault avant migration) | preuve **documentaire** — le contrat les déclare non vérifiables par test automatisé | rapport d'opérateur daté lors d'une **migration réelle** autorisée (GSO-REQ-188) |
 | `GSO-REQ-171` (verdict de migration par site) | aucun site réel migré → aucun verdict réel | migration réelle autorisée |
 | `GSO-REQ-091` (`--check`) | comportement prouvé avec la **doublure** de rôle ; `--check` contre le **vrai** rôle non exercé | acceptable — `--check` n'est proposé que comme vérification complémentaire (contrat §13.8) |
-| `docs/COMPLIANCE-MATRIX.md` | statut des 204 exigences au commit courant | mis à jour à chaque lot ; gate d'acceptation §22 = L11 |
+| `GSO-REQ-158` (tag sur SHA CI-vert) | la CI complète verte sur le SHA final **exige la CI distante** — non exécutée localement | après `push` autorisé |
+| `GSO-REQ-188` (migration réelle) | conformité du dépôt établie sur fixtures ; **aucune preuve propre à un site réel** | migration réelle — autorisation opérationnelle distincte |
+| `GSO-REQ-192` (publication) | `main` **jamais poussé** (66 commits ahead de `origin/main`) | autorisation de premier `push` |
+| Fichier `LICENSE` | absent — `README.md` : « licence non fixée » (résidu L0) | **décision humaine** avant toute release publique |
+| `docs/COMPLIANCE-MATRIX.md` | statut des 204 exigences au commit courant | 201/204 adressées (L0–L11) ; 3 bloquées (158/188/192) — voir `docs/ACCEPTANCE.md` |
+
+---
+
+## 5. Acceptation L11 — revue et verdicts séparés
+
+Lot **L11** : revue d'acceptation locale (contrat §22, §19.8). **Aucune étape
+de publication, de tag, de release ou de migration n'a été franchie**
+(GSO-REQ-191).
+
+| Domaine | Verdict | Fondé sur |
+|---|---|---|
+| **Construction locale** | **ACCEPTED** | 201/204 exigences adressées, 24/24 tests normatifs verts, `GSO-T15` OK, `make lint` 0 faute, `make matrix-check` OK |
+| **Publication** (`push` de `main`) | **BLOCKED** | `main` jamais poussé ; autorisation de premier `push` + observation CI distante requises |
+| **Release** (tag + release) | **BLOCKED** | CI distante verte sur le SHA final + `CHANGELOG` daté + `LICENSE` + n° de version + autorisation de release |
+| **Migration réelle** | **BLOCKED** | autorisation opérationnelle distincte (GSO-REQ-188) ; `inventories/production/` + vault opérationnel hors dépôt |
+
+Détail exigence par exigence et conditions exactes : `docs/ACCEPTANCE.md`.
+Les 13 exigences L11 : **10 établies par revue documentaire contrôlée**
+(GSO-REQ-159, 183, 184, 185, 186, 187, 189, 190, 191, 202) ; **3 non
+démontrées** (GSO-REQ-158, 188, 192) — bloquées par un `push`, une CI distante
+ou une migration réelle non autorisés. Aucune n'est transformée
+artificiellement en preuve documentaire.

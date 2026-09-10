@@ -2,7 +2,8 @@
 
 Résumé normatif : contrat architectural `v0.5.0` (`docs/CONTRAT-ARCHITECTURAL.md`).
 En cas de divergence, le contrat fait foi. Livré et tenu à jour par le **lot L10**
-(GSO-REQ-150) ; régénérable par `make matrix`, vérifiable par `make matrix-check`.
+(GSO-REQ-150) ; les 13 exigences L11 sont évaluées par le **lot L11** (voir
+[`ACCEPTANCE.md`](ACCEPTANCE.md)). Régénérable par `make matrix`, vérifiable par `make matrix-check`.
 
 Cinq niveaux, **distincts** :
 
@@ -15,11 +16,12 @@ Cinq niveaux, **distincts** :
   gouvernance / de procédure.
 - **Partiel** — une partie testée, une autre **différée** à une exécution réelle
   autorisée (GSO-REQ-091, 078).
-- **Non encore démontré (L11)** — relève du lot **L11** (acceptation & release),
-  **non démarré**.
+- **Non encore démontré (L11)** — après la revue d'acceptation L11, il ne reste
+  que ce qui exige une action **externe ou humaine non accordée** : un `push`, une
+  CI distante verte, une migration réelle (GSO-REQ-158, 188, 192).
 
 Les preuves issues d'un **lot antérieur** ou du **rôle** `sepp67.grav_site` sont
-**attribuées à leur véritable mécanisme**, pas à L10.
+**attribuées à leur véritable mécanisme**, pas à L10 ni à L11.
 
 ---
 
@@ -29,16 +31,17 @@ Les preuves issues d'un **lot antérieur** ou du **rôle** `sepp67.grav_site` so
 |---|---|
 | Satisfait et testé | 138 |
 | Satisfait | 15 |
-| Établi / documenté | 36 |
+| Établi / documenté | 46 |
 | Partiel | 2 |
-| Non encore démontré (L11) | 13 |
+| Non encore démontré (L11) | 3 |
 | **Total** | **204** |
 
-**191 / 204** exigences sont adressées par les lots L0–L10 (aucune en
-échec). Les **13** exigences L11 sont **non démontrées** : revue
-d'acceptation §22, gates de release, préparation de tag — lot **non autorisé**.
-La première release ne peut être préparée tant que ces exigences ne sont pas
-traitées (contrat §18.16, GSO-REQ-150).
+**201 / 204** exigences sont adressées par les lots L0–L11 (aucune en
+échec). Les **3** restantes — **GSO-REQ-158, 188, 192** — sont **non
+démontrées** : elles exigent un `push`, une CI distante verte ou une migration
+réelle, autorisations **distinctes non accordées**. La **construction locale est
+acceptée** ; publication, release et migration restent **bloquées** — détail et
+conditions dans [`ACCEPTANCE.md`](ACCEPTANCE.md) (contrat §22, GSO-REQ-150).
 
 ## Matrice détaillée (204 exigences)
 
@@ -201,8 +204,8 @@ traitées (contrat §18.16, GSO-REQ-150).
 | GSO-REQ-155 | L0 | Runtime transitif | docs/VERSIONING.md | Établi / documenté |
 | GSO-REQ-156 | L0 | Historique attribuable | docs/VERSIONING.md | Établi / documenté |
 | GSO-REQ-157 | L0 | Changelog borné | CHANGELOG.md (versions du dépôt) + REGISTRY-SCHEMA.md (versions du parc) | Satisfait |
-| GSO-REQ-158 | L11 | Tag sur SHA validé | lot L11 — acceptation & release, non démarré | Non encore démontré (L11) |
-| GSO-REQ-159 | L11 | Release et exploitation séparées | lot L11 — acceptation & release, non démarré | Non encore démontré (L11) |
+| GSO-REQ-158 | L11 | Tag sur SHA validé | docs/ACCEPTANCE.md §3 — commande de tag et SHA candidat préparés ; CI distante verte requise (non exécutée) | Non encore démontré (L11) |
+| GSO-REQ-159 | L11 | Release et exploitation séparées | l11-acceptance-guards (ci.yml sans déclencheur release/tag ; aucune étape de déploiement en CI) | Établi / documenté |
 | GSO-REQ-160 | L9 | Source préservée | MIGRATION.md §0/§12 — non-destruction ; exécution réelle à démontrer | Établi / documenté |
 | GSO-REQ-161 | L9 | Sauvegarde vérifiée | MIGRATION.md §3 — preuve documentaire (non automatisable par contrat) | Établi / documenté |
 | GSO-REQ-162 | L9 | Cartographie sans divulgation | l9-migration-doc-guard (présence) ; non-divulgation réelle à démontrer | Établi / documenté |
@@ -226,16 +229,16 @@ traitées (contrat §18.16, GSO-REQ-150).
 | GSO-REQ-180 | L8 | Même identité à la réactivation | GSO-T22 (réactivation à identité constante) | Satisfait et testé |
 | GSO-REQ-181 | L8 | Historique explicite | GSO-T22 (9 cas append-only) + l8-history-append-only | Satisfait et testé |
 | GSO-REQ-182 | L8 | Destruction hors procédure | GSO-T21 + l7-persistence-guard (aucune destruction définitive) | Satisfait et testé |
-| GSO-REQ-183 | L11 | Deux décisions humaines | lot L11 — acceptation & release, non démarré | Non encore démontré (L11) |
-| GSO-REQ-184 | L11 | Audit avant construction | lot L11 — acceptation & release, non démarré | Non encore démontré (L11) |
-| GSO-REQ-185 | L11 | Squelette non opérationnel par défaut | lot L11 — acceptation & release, non démarré | Non encore démontré (L11) |
-| GSO-REQ-186 | L11 | Zéro test critique manquant | lot L11 — acceptation & release, non démarré | Non encore démontré (L11) |
-| GSO-REQ-187 | L11 | Échec d'un garde-fou bloquant | lot L11 — acceptation & release, non démarré | Non encore démontré (L11) |
-| GSO-REQ-188 | L11 | Migration distincte de la construction | lot L11 — acceptation & release, non démarré | Non encore démontré (L11) |
-| GSO-REQ-189 | L11 | Documentation exécutable | lot L11 — acceptation & release, non démarré | Non encore démontré (L11) |
-| GSO-REQ-190 | L11 | Matrice exhaustive | lot L11 — acceptation & release, non démarré | Non encore démontré (L11) |
-| GSO-REQ-191 | L11 | Audit non exécutoire | lot L11 — acceptation & release, non démarré | Non encore démontré (L11) |
-| GSO-REQ-192 | L11 | Publication séparée | lot L11 — acceptation & release, non démarré | Non encore démontré (L11) |
+| GSO-REQ-183 | L11 | Deux décisions humaines | l11-acceptance-guards + GSO-T23 + REGISTRY-SCHEMA.md (aucune notion de publication dans le registre) | Établi / documenté |
+| GSO-REQ-184 | L11 | Audit avant construction | audit-grav-sites-ops/01..08 antérieurs au premier commit de construction ; docs/GOVERNANCE.md | Établi / documenté |
+| GSO-REQ-185 | L11 | Squelette non opérationnel par défaut | l11-acceptance-guards (premier commit 4a4eab0 = README.md seul, aucune capacité de déploiement) | Établi / documenté |
+| GSO-REQ-186 | L11 | Zéro test critique manquant | revue de matrice — aucun TEST GAP : sélection GSO-T08..T12, secrets GSO-T07/T14/T24, persistance GSO-T17/T18, rôle GSO-T13/T15, non-contact GSO-T12/T23 | Établi / documenté |
+| GSO-REQ-187 | L11 | Échec d'un garde-fou bloquant | l11-acceptance-guards + docs/ACCEPTANCE.md §4 (gate de release conditionné à la CI bloquante — job conformance) ; observation différée à la CI distante | Établi / documenté |
+| GSO-REQ-188 | L11 | Migration distincte de la construction | conformité du dépôt établie sur fixtures (L9 + matrice) ; conformité opérationnelle par site réel différée (migration autorisée séparément) | Non encore démontré (L11) |
+| GSO-REQ-189 | L11 | Documentation exécutable | l11-acceptance-guards (21 cibles make documentees = 21 reelles ; exemples non executables signales) | Établi / documenté |
+| GSO-REQ-190 | L11 | Matrice exhaustive | 08-preflight-construction.md §5 (204 cartographiees) + docs/COMPLIANCE-MATRIX.md (make matrix-check) | Établi / documenté |
+| GSO-REQ-191 | L11 | Audit non exécutoire | audit-grav-sites-ops/ n'a produit aucun commit ; chaque lot L0-L11 autorise separement avant modification | Établi / documenté |
+| GSO-REQ-192 | L11 | Publication séparée | l11-acceptance-guards (main ahead de origin/main jamais pousse ; aucune branche ni tag pousse ; aucune automatisation push/tag/release) | Non encore démontré (L11) |
 | GSO-REQ-193 | L0 | Différé non implicite | docs/GOVERNANCE.md | Établi / documenté |
 | GSO-REQ-194 | L0 | Décisions protégées | docs/GOVERNANCE.md | Établi / documenté |
 | GSO-REQ-195 | L0 | Amendement avant code | docs/GOVERNANCE.md | Établi / documenté |
@@ -245,6 +248,6 @@ traitées (contrat §18.16, GSO-REQ-150).
 | GSO-REQ-199 | L0 | Autorisations distinctes | gates d'autorisation humains (rapports 09–19) | Établi / documenté |
 | GSO-REQ-200 | L0 | Mutation bornée au dépôt | docs/GOVERNANCE.md | Établi / documenté |
 | GSO-REQ-201 | L0 | Évolution fondée sur les faits | docs/GOVERNANCE.md | Établi / documenté |
-| GSO-REQ-202 | L11 | Approbation explicite | lot L11 — acceptation & release, non démarré | Non encore démontré (L11) |
+| GSO-REQ-202 | L11 | Approbation explicite | contrat v0.5.0 §23.10 — approbation humaine explicite du 2026-09-05 ; README + docs/GOVERNANCE.md | Établi / documenté |
 | GSO-REQ-203 | L2 | Secrets applicatifs par site | GSO-T07, GSO-T13 (name+content, jamais src) | Satisfait et testé |
 | GSO-REQ-204 | L4 | Cohérence structurelle vérifiée avant déploiement | GSO-T07 + GSO-T14 + préflight structurel de deploy-site.yml | Satisfait et testé |

@@ -11,6 +11,35 @@ et le versionnement sémantique.
 
 ## [Non publié]
 
+### Ajouté — lot L11 (acceptation : revue §22, verdicts séparés)
+
+- `docs/ACCEPTANCE.md` : revue des critères d'acceptation du contrat (§22),
+  **consommation** de la matrice 204/204, évaluation **exigence par exigence**
+  des 13 exigences L11 (GSO-REQ-158, 159, 183, 184, 185, 186, 187, 188, 189,
+  190, 191, 192, 202), préparation **documentaire** d'une release (§19.8 —
+  **aucune étape franchie**), et **quatre verdicts séparés** :
+  - **construction locale** : `ACCEPTED` ;
+  - **publication** (`push` de `main`) : `BLOCKED` — `main` jamais poussé ;
+  - **release** (tag) : `BLOCKED` — CI distante verte + `LICENSE` + version ;
+  - **migration réelle** : `BLOCKED` — autorisation opérationnelle distincte.
+- `tests/l11-acceptance-guards.sh` (job `static`) : rend re-vérifiables les
+  constats — premier commit sans capacité de déploiement (GSO-REQ-185), aucune
+  automatisation `git push` / `git tag` / `gh release` (GSO-REQ-159/192),
+  `ci.yml` sans déclencheur `release`/`tag`, 21 cibles `make` documentées =
+  21 réelles (GSO-REQ-189), matrice 204/204 (GSO-REQ-190), migration réelle
+  maintenue `BLOCKED` (GSO-REQ-188), licence signalée comme décision humaine.
+- `docs/COMPLIANCE-MATRIX.md` : les 13 exigences L11 passent de « non
+  démontré » à **10 « établi / documenté »** (revue L11) + **3 « non
+  démontré »** (GSO-REQ-158/188/192, bloquées par un `push`, une CI distante
+  ou une migration réelle non autorisés). **201 / 204** adressées.
+- `docs/TEST-RESULTS.md` : §5 « Acceptation L11 » ; `GSO-T15` **réexécuté**
+  pour l'acceptation finale.
+- `README.md` : lot L11 ; état d'acceptation ; licence signalée bloquante.
+- `.github/workflows/ci.yml` : étape `l11-acceptance-guards` dans `static`.
+
+Aucun `push`, tag, release, migration réelle, dépôt distant, vault ou
+inventaire opérationnel. Aucun nouvel identifiant `GSO-T`.
+
 ### Ajouté — lot L10 (consolidation : CI bloquante, résultats, matrice)
 
 - `docs/TEST-RESULTS.md` (GSO-REQ-136/147) : **exécutions réellement observées**
