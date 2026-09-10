@@ -110,6 +110,15 @@ lint-lifecycle: ## Valide les registres retire / reactive suivis + append-only i
 test-role: ## Verifie l'installation du role (acces reseau requis)
 	bash tests/gso-t03-role-install.sh
 
+.PHONY: matrix
+matrix: ## Regenere docs/COMPLIANCE-MATRIX.md (matrice des 204 exigences, L10)
+	python3 scripts/lib/gso_compliance.py > docs/COMPLIANCE-MATRIX.md
+	@echo "docs/COMPLIANCE-MATRIX.md regenere."
+
+.PHONY: matrix-check
+matrix-check: ## Verifie que docs/COMPLIANCE-MATRIX.md est a jour (204 lignes, aucune exigence oubliee)
+	python3 scripts/lib/gso_compliance.py --check
+
 .PHONY: clean
 clean: ## Supprime les artefacts locaux non suivis (roles, caches)
 	rm -rf $(ROLES_PATH) collections .ansible .ansible-lint-cache

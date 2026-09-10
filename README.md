@@ -16,7 +16,9 @@ L2 (modèle de vault), L3 (sélecteur fermé + préflight), L4 (déploiement d'u
 site), L5 (redémarrage et arrêt d'un site), L6 (contrôle de dérive, lecture
 seule), L7 (mise à jour et rollback déclaratifs, gardes de persistance),
 L8 (cycle de vie documentaire : retrait, réactivation, validateur lecture
-seule), L9 (migration documentaire site par site depuis l'ancien profil).**
+seule), L9 (migration documentaire site par site depuis l'ancien profil),
+L10 (consolidation : CI bloquante, `docs/TEST-RESULTS.md`, matrice des 204
+exigences).**
 
 Le dépôt reste **non opérationnel par défaut** : ni inventaire de production,
 ni vault opérationnel. Les seules données versionnées sont l'inventaire, le
@@ -68,6 +70,7 @@ Toutes les commandes ci-dessous sont couvertes par un test (`make test`).
 | `make lint-registry` | valide le registre d'exemple (même validateur que `GSO-T06`) |
 | `make lint-vault` | valide le modèle de vault d'exemple (même validateur que `GSO-T07`) |
 | `make lint-lifecycle` | valide `registry/retired-sites.yml` + `reactivated-sites.yml` (lecture seule, L8) |
+| `make matrix` / `make matrix-check` | régénère / vérifie `docs/COMPLIANCE-MATRIX.md` (204 exigences, L10) |
 | `make clean` | supprime les artefacts locaux non suivis |
 
 ## Structure
@@ -82,7 +85,7 @@ playbooks/           deploy/restart/stop-site.yml (mutations) + check-site/check
 registry/            retired-sites.yml + reactivated-sites.yml (documentaires L8, hors group_vars, jamais auto-chargés)
 scripts/             sélecteur + préflight (L3) ; deploy/restart/stop-site.sh + lib/site-mutation.sh (mutations, verrou) ; check-site/check-all.sh + lib/site-check.sh + lib/gso_classify.py (contrôle L6, sans verrou) ; lib/gso_validate.py = validateur partagé ; lib/gso_lifecycle.py = validateur cycle de vie L8 (lecture seule)
 tests/               scripts GSO-T*, lanceur, helpers (tests/lib/), fixtures
-docs/                architecture, contrat, schémas registre/vault/cycle de vie, exploitation, migration (L9), tests, versionnement, gouvernance
+docs/                architecture, contrat, schémas registre/vault/cycle de vie, exploitation, migration (L9), TEST-RESULTS + COMPLIANCE-MATRIX (L10), versionnement, gouvernance
 .github/workflows/   CI (jobs statiques)
 ```
 

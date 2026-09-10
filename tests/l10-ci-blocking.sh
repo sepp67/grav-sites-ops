@@ -121,4 +121,18 @@ done
 grep -qE 'l4-ci-functional-contract' "$CI" && pass "GSO-T15 : garde-fou statique présent (jamais exécuté en CI)" \
   || fail "garde-fou GSO-T15 absent de la CI"
 
+# --------------------------------------------------------------------------
+# GSO-REQ-150 — matrice de conformité complète et à jour (204 exigences)
+# --------------------------------------------------------------------------
+if [ -f docs/COMPLIANCE-MATRIX.md ] \
+   && [ "$(grep -c '^| GSO-REQ-' docs/COMPLIANCE-MATRIX.md)" = 204 ] \
+   && python3 scripts/lib/gso_compliance.py --check >/dev/null 2>&1; then
+  pass "GSO-REQ-150 : docs/COMPLIANCE-MATRIX.md — 204 exigences, à jour (make matrix-check)"
+else
+  fail "GSO-REQ-150 : matrice de conformité absente / incomplète / obsolète"
+fi
+grep -qE 'matrix-check|COMPLIANCE-MATRIX' "$CI" \
+  && pass "la CI vérifie la matrice de conformité" \
+  || fail "la CI ne vérifie pas la matrice de conformité"
+
 finish

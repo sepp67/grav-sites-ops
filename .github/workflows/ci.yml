@@ -78,6 +78,8 @@ jobs:
         run: bash tests/l10-cleanup.sh
       - name: L10 — CI non opérationnelle et bloquante (GSO-REQ-030/046/058/074/139/145/146/147)
         run: bash tests/l10-ci-blocking.sh
+      - name: L10 — matrice de conformité 204/204 à jour (GSO-REQ-150)
+        run: make matrix-check
 
   role:
     name: Installation de la dépendance de rôle

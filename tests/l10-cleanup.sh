@@ -104,10 +104,19 @@ rt1="$(snap_rt)"; tmp1="$(snap_tmp)"; dk1="$(snap_dk)"; git1="$(snap_git)"
 [ "$git0" = "$git1" ] && pass "dépôt suivi inchangé après l'échantillon" || fail "dépôt modifié : $(comm -13 <(echo "$git0") <(echo "$git1"))"
 
 # --------------------------------------------------------------------------
-# 3. make clean ne laisse aucun artefact hors roles/collections ignorés
+# 3. La cible `make clean` ne supprime QUE des artefacts ignorés / générés
+#    (jamais un fichier suivi). Vérification STATIQUE — on n'exécute pas
+#    `make clean` ici pour ne pas retirer roles/ dont GSO-T15 a besoin.
 # --------------------------------------------------------------------------
-( cd "$REPO_ROOT" && make clean >/dev/null 2>&1 )
-resid="$(git -C "$REPO_ROOT" status --porcelain --ignored | grep -vE '^!! (roles|collections)/$' || true)"
-[ -z "$resid" ] && pass "make clean : working tree entièrement propre (hors roles/ collections/ ignorés)" || fail "résidu après make clean : $resid"
+clean_body="$(awk '/^clean:/{f=1;next} f&&/^[a-zA-Z]/{f=0} f' Makefile)"
+if printf '%s' "$clean_body" | grep -qE 'git |inventories/|playbooks/|scripts/|docs/|registry/|tests/[a-z]'; then
+  fail "la cible make clean touche un chemin suivi"
+else
+  pass "make clean : ne cible que roles/ collections/ caches / __pycache__ / *.retry (aucun fichier suivi)"
+fi
+
+# le dépôt suivi est déjà propre après l'échantillon (aucun make clean requis)
+resid="$(git -C "$REPO_ROOT" status --porcelain || true)"
+[ -z "$resid" ] && pass "working tree suivi propre après la batterie d'échantillon" || fail "résidu suivi : $resid"
 
 finish

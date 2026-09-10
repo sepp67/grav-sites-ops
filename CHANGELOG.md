@@ -11,6 +11,43 @@ et le versionnement sémantique.
 
 ## [Non publié]
 
+### Ajouté — lot L10 (consolidation : CI bloquante, résultats, matrice)
+
+- `docs/TEST-RESULTS.md` (GSO-REQ-136/147) : **exécutions réellement observées**
+  — pour chaque test, la dernière exécution, la commande, le commit,
+  l'environnement, le résultat. Signale **explicitement** que la CI GitHub
+  Actions n'a **jamais été exécutée à distance** (aucun `push`) : son
+  caractère bloquant n'est pas observé en pratique.
+- `docs/COMPLIANCE-MATRIX.md` (GSO-REQ-150) : les **204 exigences `GSO-REQ`**,
+  chacune avec lot porteur, intitulé, preuve principale (nommée) et statut
+  parmi **satisfait et testé / satisfait / établi-documenté / partiel / non
+  encore démontré**. Régénérée par `make matrix`, vérifiée par
+  `make matrix-check` (`scripts/lib/gso_compliance.py`, read-only). État :
+  191/204 adressées par L0–L10, 13 (L11) non démontrées.
+- `.github/workflows/ci.yml` : job **`conformance`** (`needs:` tous les autres
+  jobs — GSO-REQ-145) ; `ansible-core` borné `>=2.17,<2.19` (GSO-REQ-146) ;
+  étapes L10.
+- `tests/l10-check-mode.sh` (GSO-REQ-091) : `deploy-site.yml --check`
+  s'exécute (assertions + préflight) mais **n'applique rien** (la doublure ne
+  produit aucun artefact) ; aucun document opérateur ne présente `--check`
+  comme un déploiement. `docs/OPERATIONS.md` : section « Mode `--check` ».
+- `tests/l10-multisite-isolation.sh` (GSO-REQ-142, porteur L10) : trois sites,
+  déploiements entrelacés A→B→A sans fuite d'état, indépendance par hôte,
+  `no_log` sous `-vv`, résolution **exclusivement** par `inventory_hostname`.
+- `tests/l10-cleanup.sh` (GSO-REQ-148/149) : gardes statiques (`trap`,
+  préfixe reconnaissable, aucun nettoyage non borné) + preuve dynamique
+  (échantillon représentatif → zéro conteneur / réseau / verrou / temporaire
+  résiduel).
+- `tests/l10-ci-blocking.sh` (GSO-REQ-030/046/058/074/139/145/146/147/150) :
+  aucun `continue-on-error`, porte de conformité, CI sans inventaire de
+  production ni vault ni clé SSH, interpréteurs bornés, matrice 204/204.
+- `Makefile` : `make matrix`, `make matrix-check`.
+- Harmonisation : `gso-t03..t09` passent de `mktemp -d` nu à `gso_mktemp_dir`
+  (préfixe reconnaissable). `run-all.sh` ramasse aussi `l10-*.sh`.
+
+Aucun nouvel identifiant `GSO-T` (préflight §6 : L10 = consolidation, aucun
+`GSO-T` supplémentaire). Preuves L10 non numérotées (`tests/l10-*.sh`).
+
 ### Ajouté — lot L9 (migration documentaire depuis l'ancien profil)
 
 - `docs/MIGRATION.md` : procédure **manuelle**, **site par site** (GSO-REQ-167),
