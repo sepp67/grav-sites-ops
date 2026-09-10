@@ -120,9 +120,9 @@ traitées (contrat §18.16, GSO-REQ-150).
 | GSO-REQ-074 | L10 | Test de non-fuite | l10-ci-blocking (GSO-T24 dans la CI) | Satisfait et testé |
 | GSO-REQ-075 | L7 | Persistance prioritaire | GSO-T17/T18 (quatre ensembles) + l7-persistence-guard | Satisfait et testé |
 | GSO-REQ-076 | L7 | Rollback limité à l'image | GSO-T18 + l7-persistence-guard | Satisfait et testé |
-| GSO-REQ-077 | L7 | Pas de `rsync` implicite | l7-persistence-guard (aucun rsync) | Satisfait et testé |
+| GSO-REQ-077 | L7 | Pas de `rsync` implicite | l7-persistence-guard (aucune synchronisation de contenu) | Satisfait et testé |
 | GSO-REQ-078 | L7 | Déploiement distinct de la sauvegarde | l7-persistence-guard (versant négatif) + docs — sauvegarde réelle hors périmètre | Partiel |
-| GSO-REQ-079 | L7 | Absence de destruction automatisée | l7-persistence-guard (aucun down --volumes / prune / rm -rf) | Satisfait et testé |
+| GSO-REQ-079 | L7 | Absence de destruction automatisée | l7-persistence-guard (aucune primitive de destruction de volume ou de répertoire) | Satisfait et testé |
 | GSO-REQ-080 | L10 | Couverture de persistance | GSO-T17/T18 (scénario) + l7-persistence-guard (statique) | Satisfait et testé |
 | GSO-REQ-081 | L4 | Un playbook, une intention | l5-action-closed (une intention par playbook) | Satisfait et testé |
 | GSO-REQ-082 | L4 | Pas de déploiement global implicite | l5-action-closed + _shared/mutate.yml (jamais global) | Satisfait et testé |

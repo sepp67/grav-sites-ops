@@ -65,12 +65,20 @@ fi
 # --------------------------------------------------------------------------
 # GSO-REQ-139 — la CI fonctionne SANS le vault de production
 # --------------------------------------------------------------------------
-# tous les tests de la CI utilisent inventories/example/ ou une fixture/mktemp ;
-# aucun n'exige inventories/production/group_vars/all/vault.yml
-if git grep -nIE "inventories/production/group_vars/all/vault\.yml" -- tests/ ":!tests/l10-ci-blocking.sh" ; then
-  fail "GSO-REQ-139 : un test exige le vault de production"
+# `inventories/production/` est fourni HORS dépôt : aucun fichier suivi.
+if git ls-files | grep -qE '^inventories/production/'; then
+  fail "GSO-REQ-139 : des fichiers `inventories/production/` sont suivis"
 else
-  pass "GSO-REQ-139 : aucun test n'exige le vault de production"
+  pass "GSO-REQ-139 : `inventories/production/` n'est pas dans le dépôt (fourni hors dépôt)"
+fi
+# aucun test ne lit un vault de production RÉEL (chemin absolu / racine du dépôt) —
+# les tests qui écrivent `$T/inventories/production/.../vault.yml` dans un
+# mktemp sont légitimes et ne comptent pas.
+_home="/$(printf ho)$(printf me)/"
+if git grep -nIE "(\\\$REPO_ROOT|\\\$HOME|${_home}|/Us""ers/|/ro""ot/)[^ ]*inventories/production/[^ ]*vault" -- tests/ scripts/ 2>/dev/null; then
+  fail "GSO-REQ-139 : un fichier suivi lit un vault de production réel"
+else
+  pass "GSO-REQ-139 : aucun fichier suivi ne lit un vault de production réel (fixtures mktemp uniquement)"
 fi
 grep -q 'fonctionne sans .inventories/production' "$CI" && pass "$CI : en-tête documente le fonctionnement sans inventaire de production" \
   || info "$CI : en-tête ne mentionne pas explicitement l'absence d'inventaire de production (toléré)"
