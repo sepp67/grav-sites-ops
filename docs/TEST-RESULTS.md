@@ -30,17 +30,18 @@ inventée**.
 | `yamllint` | 1.38.0 |
 | Docker Engine | 29.1.3 (utilisé uniquement par `GSO-T15`, local) |
 | Rôle | `sepp67.grav_site` `v2.0.0` (épinglé, `requirements.yml`) |
-| Collection | `community.docker` 5.2.2 (`>=5.0.0,<6.0.0`) |
+| Collection | `community.docker` 5.3.0 (`>=5.0.0,<6.0.0`) |
 | Image de test | `ghcr.io/sepp67/grav-runtime:1.0.4` `@sha256:d130f333…` (locale, `GSO-T15`) |
 
 ---
 
 ## 2. Batterie reproductible — `make test-reproducible`
 
-**Dernière exécution observée** — commit `RESULTS_COMMIT`, date `RESULTS_DATE`,
+**Dernière exécution observée** — commit `b859612`, date 2026-09-10,
 environnement §1.
 **Commande :** `make clean && make install-role && make test-reproducible`.
-**Résultat global : `RESULTS_REPRO`.**
+**Résultat global : 34 tests exécutés, 34 réussis, 0 échec**
+(`GSO-T15` non inclus — voir §3 ; sortie du lanceur : `Total : 34   Reussis : 34   Echecs : 0`).
 
 | Test | Scénario | Nature | Résultat |
 |---|---|---|---|
@@ -80,7 +81,8 @@ environnement §1.
 | `l10-ci-blocking` | CI sans `continue-on-error`, porte de conformité, non opérationnelle, interpréteurs bornés, absence CI observée signalée | statique | OK |
 
 `make lint` (`yamllint --strict` + `ansible-lint --offline`) : **0 faute**,
-21 fichiers, profil `production` franchi — même commit, même environnement.
+22 fichiers traités sur 90 rencontrés, profil `production` franchi — même
+commit, même environnement.
 
 ---
 
@@ -89,10 +91,15 @@ environnement §1.
 **Non exécuté par la CI** (aucune image `grav-runtime` garantie sur un runner,
 aucun identifiant GHCR — GSO-REQ-108). Test d'acceptation **local**.
 
-**Dernière exécution observée** — commit `RESULTS_COMMIT`, date `RESULTS_DATE`,
+**Dernière exécution observée** — commit `b859612`, date 2026-09-10,
 environnement §1 (Docker Engine 29.1.3, image `1.0.4` présente localement).
 **Commande :** `make install-role && make test-functional`.
-**Résultat : `RESULTS_T15`.**
+**Résultat : OK** — conteneur éphémère `gso-t15-6aa297d31552558628`,
+réseau `gso-t15-6aa297d31552558628_default`, port `127.0.0.1:18715` ;
+`http://127.0.0.1:18715/admin` → 200 ; image déployée par digest épinglé
+`sha256:d130f333c6566a26856c271656b21ce2d06793f9c4af24e620b53da14e4d640f` ;
+conteneur / réseau / verrou / répertoire temporaire supprimés en fin de test
+(`aucun conteneur, réseau, journal, répertoire temporaire ou verrou résiduel`).
 
 Contrôles vérifiés : `scripts/deploy.sh` rc=0 ; ordre sélecteur/verrou →
 assertions → préflight structurel → rôle (positions croissantes dans le
