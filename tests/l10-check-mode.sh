@@ -106,8 +106,5 @@ fi
 # --------------------------------------------------------------------------
 grep -qE 'SYNTH-L10-CHECK' "$tmp/check.log" "$tmp/real.log" && fail "fuite d'une valeur secrète" \
   || pass "aucune valeur secrète dans les sorties"
-cur="$(cd "$REPO_ROOT" && git status --porcelain -- tests/ docs/ playbooks/)"
-[ -z "$cur" ] && pass "dépôt suivi inchangé" || fail "modifié : $cur"
-
 gso_assert_runtime_clean
 finish

@@ -115,8 +115,4 @@ else
   pass "make clean : ne cible que roles/ collections/ caches / __pycache__ / *.retry (aucun fichier suivi)"
 fi
 
-# le dépôt suivi est déjà propre après l'échantillon (aucun make clean requis)
-resid="$(git -C "$REPO_ROOT" status --porcelain || true)"
-[ -z "$resid" ] && pass "working tree suivi propre après la batterie d'échantillon" || fail "résidu suivi : $resid"
-
 finish

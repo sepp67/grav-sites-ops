@@ -156,7 +156,7 @@ assert "grav_image" in old and "grav_version" in old, "ancien profil : forme pla
 assert "grav_sites" not in old, "ancien profil ne doit PAS être déjà indexé"
 assert "legacy_smtp_relay" in old, "le champ non mappé de démonstration doit être présent"
 ' "$OLD/group_vars/grav_servers/main.yml" \
-  && pass "fixture ancien profil : forme plate `grav_*` (non indexée), avec un champ non mappé" \
+  && pass "fixture ancien profil : forme plate grav_image/grav_version (non indexée), avec un champ non mappé" \
   || fail "fixture ancien profil mal formée"
 
 python3 -c '

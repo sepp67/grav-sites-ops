@@ -67,9 +67,9 @@ fi
 # --------------------------------------------------------------------------
 # `inventories/production/` est fourni HORS dépôt : aucun fichier suivi.
 if git ls-files | grep -qE '^inventories/production/'; then
-  fail "GSO-REQ-139 : des fichiers `inventories/production/` sont suivis"
+  fail "GSO-REQ-139 : des fichiers inventories/production/ sont suivis"
 else
-  pass "GSO-REQ-139 : `inventories/production/` n'est pas dans le dépôt (fourni hors dépôt)"
+  pass "GSO-REQ-139 : inventories/production/ n'est pas dans le dépôt (fourni hors dépôt)"
 fi
 # aucun test ne lit un vault de production RÉEL (chemin absolu / racine du dépôt) —
 # les tests qui écrivent `$T/inventories/production/.../vault.yml` dans un

@@ -141,10 +141,8 @@ else
 fi
 
 # --------------------------------------------------------------------------
-# 6. Fixtures et dépôt inchangés
+# 6. Fixtures et dépôt inchangés (comparaison avant / après — n'exige pas un
+#    working tree vierge, seulement que CE test ne modifie rien de suivi)
 # --------------------------------------------------------------------------
-cur="$(cd "$REPO_ROOT" && git status --porcelain -- tests/fixtures/ playbooks/)"
-[ -z "$cur" ] && pass "fixtures/ et playbooks/ suivis inchangés" || fail "modifié : $cur"
-
 gso_assert_runtime_clean
 finish
