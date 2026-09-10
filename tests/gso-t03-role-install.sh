@@ -17,7 +17,7 @@ if [ ! -f requirements.yml ]; then
   finish
 fi
 
-tmp="$(mktemp -d)"
+tmp="$(gso_mktemp_dir t03)"
 trap 'rm -rf "$tmp"' EXIT
 
 if ansible-galaxy role install -r requirements.yml -p "$tmp" >"$tmp/out.log" 2>&1; then

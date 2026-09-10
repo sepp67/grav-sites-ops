@@ -10,7 +10,7 @@ DIR="$(cd "$(dirname "$0")" && pwd)"
 cd "$REPO_ROOT"
 S="$REPO_ROOT/scripts/validate-target.sh"
 
-tmp="$(mktemp -d)"
+tmp="$(gso_mktemp_dir t09)"
 trap 'rm -rf "$tmp"' EXIT
 l3_tmptree l3-prod-ok "$tmp/tree"
 W="$tmp/tree/scripts/validate-target.sh"   # copie complète : racine = $tmp/tree

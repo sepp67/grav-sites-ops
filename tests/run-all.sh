@@ -31,7 +31,7 @@ if [ -e "$ROOT/playbooks/deploy-site.yml" ] && [ ! -d "$ROOT/roles/sepp67.grav_s
     echo "run-all : échec de l'installation des dépendances Ansible" >&2; exit 1; }
 fi
 
-mapfile -t all < <(find . -maxdepth 1 \( -name 'gso-t*.sh' -o -name 'l[0-9]-*.sh' \) | sort)
+mapfile -t all < <(find . -maxdepth 1 \( -name 'gso-t*.sh' -o -name 'l[0-9]-*.sh' -o -name 'l[0-9][0-9]-*.sh' \) | sort)
 scripts=()
 skipped_functional=""
 for s in "${all[@]}"; do

@@ -11,7 +11,7 @@ cd "$REPO_ROOT"
 S="$REPO_ROOT/scripts/validate-target.sh"
 P="$REPO_ROOT/scripts/preflight.sh"
 
-tmp="$(mktemp -d)"
+tmp="$(gso_mktemp_dir t08)"
 trap 'rm -rf "$tmp"' EXIT
 
 # --- 1. Racine déterminée depuis l'emplacement du fichier, une seule fois ---

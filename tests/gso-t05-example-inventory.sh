@@ -19,7 +19,7 @@ if [ ! -f "$INV" ]; then
   finish
 fi
 
-tmp="$(mktemp -d)"
+tmp="$(gso_mktemp_dir t05)"
 trap 'rm -rf "$tmp"' EXIT
 
 # --- 1. Parsing Ansible ---

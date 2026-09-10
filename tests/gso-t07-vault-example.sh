@@ -26,7 +26,7 @@ for f in "$INV" "$REG" "$VAULT"; do
   [ -f "$f" ] || { fail "fichier absent : $f"; finish; }
 done
 
-tmp="$(mktemp -d)"
+tmp="$(gso_mktemp_dir t07)"
 trap 'rm -rf "$tmp"' EXIT
 
 # Valeurs sensibles du vault d'exemple, dérivées du fichier lui-même (jamais

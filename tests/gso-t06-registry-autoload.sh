@@ -21,7 +21,7 @@ for f in "$INV" "$REG"; do
   [ -f "$f" ] || { fail "fichier absent : $f"; finish; }
 done
 
-tmp="$(mktemp -d)"
+tmp="$(gso_mktemp_dir t06)"
 trap 'rm -rf "$tmp"' EXIT
 
 # --- 1. Emplacement : group_vars/all/ adjacent à l'inventaire ---
