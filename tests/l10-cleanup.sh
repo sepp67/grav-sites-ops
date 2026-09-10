@@ -82,22 +82,31 @@ snap_tmp() { find "${TMPDIR:-/tmp}" -maxdepth 1 \( -name 'gso-*' -o -name 'tmp.*
 snap_dk() { docker ps -aq --filter 'name=gso-t' 2>/dev/null | sort || true; docker network ls --filter 'name=gso-t' -q 2>/dev/null | sort || true; }
 snap_git() { git -C "$REPO_ROOT" status --porcelain || true; }
 
+# journaux de l'échantillon : HORS du dépôt (sinon `git status` les verrait
+# le temps de l'exécution et le contrôle « dépôt suivi inchangé » deviendrait
+# sensible à une course).
+sample_log="$(gso_mktemp_dir l10-cleanup-sample)"
+trap 'rm -rf "$sample_log"' EXIT
+
 rt0="$(snap_rt)"; tmp0="$(snap_tmp)"; dk0="$(snap_dk)"; git0="$(snap_git)"
 
 # un test par famille de ressource :
 #   gso-t13  -> doublure de rôle + verrou (chemin opérateur)
 #   l4-concurrency-lock -> verrous flock
 #   gso-t19  -> fausse CLI docker + fixtures
+#   l10-multisite-isolation -> trois sites, ansible-playbook -vv
 for s in gso-t13-translate l4-concurrency-lock gso-t19-drift-classification l10-multisite-isolation; do
-  if bash "tests/$s.sh" > "$DIR/../$s.l10out" 2>&1; then
-    rm -f "$DIR/../$s.l10out"
-  else
-    sed 's/^/   | /' "$DIR/../$s.l10out" | tail -8; rm -f "$DIR/../$s.l10out"
+  if ! bash "tests/$s.sh" > "$sample_log/$s.out" 2>&1; then
+    sed 's/^/   | /' "$sample_log/$s.out" | tail -8
     fail "échantillon $s a échoué"
   fi
 done
 
-rt1="$(snap_rt)"; tmp1="$(snap_tmp)"; dk1="$(snap_dk)"; git1="$(snap_git)"
+# les répertoires temporaires des sous-tests sont nettoyés par leur `trap`
+# EXIT, qui a déjà eu lieu ; on retire notre propre journal des deux relevés.
+rt1="$(snap_rt)"; dk1="$(snap_dk)"; git1="$(snap_git)"
+tmp1="$(snap_tmp | grep -vF "$sample_log" || true)"
+tmp0="$(printf '%s\n' "$tmp0" | grep -vF "$sample_log" || true)"
 [ "$rt0" = "$rt1" ]   && pass "dossier runtime réel inchangé après l'échantillon (aucun verrou de test)" || fail "verrou résiduel : $(comm -13 <(echo "$rt0") <(echo "$rt1"))"
 [ "$tmp0" = "$tmp1" ] && pass "aucun /tmp/gso-* ni /tmp/tmp.*.run.log résiduel" || fail "temp résiduel : $(comm -13 <(echo "$tmp0") <(echo "$tmp1"))"
 [ "$dk0" = "$dk1" ]   && pass "aucun conteneur / réseau gso-t* résiduel" || fail "Docker résiduel : $(comm -13 <(echo "$dk0") <(echo "$dk1"))"

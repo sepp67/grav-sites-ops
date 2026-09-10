@@ -225,8 +225,7 @@ fi
 # --------------------------------------------------------------------------
 # 10. Fixtures et dépôt inchangés ; aucun résidu
 # --------------------------------------------------------------------------
-cur="$(cd "$REPO_ROOT" && git status --porcelain -- tests/fixtures/ docs/ registry/)"
-[ -z "$cur" ] && pass "fixtures/, docs/, registry/ suivis inchangés" || fail "modifié : $cur"
-
+# Comparaison avant / après (gso_isolate_runtime a pris l'empreinte au début) :
+# n'exige pas un working tree vierge, seulement que CE test ne modifie rien.
 gso_assert_runtime_clean
 finish

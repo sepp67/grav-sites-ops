@@ -25,6 +25,10 @@ trap 'rm -rf "$tmp"' EXIT
 
 WRAP="$REPO_ROOT/scripts/lifecycle-history-check.sh"
 
+# empreinte du working tree AVANT le test (comparaison avant/après — n'exige
+# pas un arbre vierge, seulement que CE test ne modifie rien de suivi).
+_wt_before="$(git -C "$REPO_ROOT" status --porcelain -- registry/ scripts/ tests/fixtures/ 2>/dev/null || true)"
+
 # --------------------------------------------------------------------------
 # 1. Historique réel du dépôt : append-only
 # --------------------------------------------------------------------------
@@ -131,9 +135,10 @@ else
 fi
 
 # --------------------------------------------------------------------------
-# 7. Le dépôt courant n'a pas été modifié
+# 7. Le dépôt courant n'a pas été modifié PAR CE TEST (comparaison avant/après)
 # --------------------------------------------------------------------------
-cur="$(cd "$REPO_ROOT" && git status --porcelain -- registry/ scripts/ tests/fixtures/)"
-[ -z "$cur" ] && pass "dépôt courant inchangé (registry/, scripts/, fixtures/)" || fail "modifié : $cur"
+_wt_after="$(git -C "$REPO_ROOT" status --porcelain -- registry/ scripts/ tests/fixtures/ 2>/dev/null || true)"
+[ "$_wt_before" = "$_wt_after" ] && pass "dépôt courant inchangé par le test (registry/, scripts/, fixtures/)" \
+  || fail "le test a modifié le dépôt : $(comm -13 <(printf '%s\n' "$_wt_before") <(printf '%s\n' "$_wt_after") | tr '\n' ' ')"
 
 finish

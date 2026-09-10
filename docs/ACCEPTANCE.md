@@ -9,7 +9,7 @@ Ce document **consomme** la matrice des 204 exigences
 ([`TEST-RESULTS.md`](TEST-RESULTS.md)) pour statuer, **séparément**, sur :
 
 1. l'**acceptation de la construction locale** ;
-2. la **publication** (dépôt distant + `push`) ;
+2. la **publication** (`push` de `main` vers le dépôt distant existant) ;
 3. la **release** (tag + release GitHub) ;
 4. la **migration réelle** depuis l'ancien profil.
 
