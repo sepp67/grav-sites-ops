@@ -76,6 +76,22 @@ git -C "$T" init -q
 git -C "$T" -c user.email=t@t -c user.name=t add -A >/dev/null
 git -C "$T" -c user.email=t@t -c user.name=t commit -qm "état initial"
 
+# commit_reg <message> : committe la modification du registre de façon FIABLE.
+# `git commit -am` s'appuie sur le cache de stat : une réécriture de MÊME
+# TAILLE (version "1.0.0"<->"2.0.0", digest 64×a<->64×b) peut être manquée sous
+# charge. `git add -A` recalcule le hash du contenu -> détection sûre. On
+# vérifie ensuite que le commit a bien atterri (sinon échec immédiat et net).
+commit_reg() {
+  git -C "$T" -c user.email=t@t -c user.name=t add -A
+  if git -C "$T" diff --cached --quiet; then
+    fail "commit_reg : aucun changement de registre à committer pour « $1 »"; finish
+  fi
+  git -C "$T" -c user.email=t@t -c user.name=t commit -qm "$1"
+  # le commit DOIT avoir atterri (défaut de verrou d'index, etc. -> échec net ici)
+  git -C "$T" log -1 --pretty=%s | grep -qxF "$1" \
+    || { fail "commit_reg : le commit « $1 » n'a pas atterri"; finish; }
+}
+
 seq_log="$tmp/sequence.log"    # journal synthétique append-only (orchestration)
 : > "$seq_log"
 deploy_step() {  # <spydir> <label> <logfile>
@@ -100,17 +116,17 @@ spy1="$tmp/spy.1"; spy2="$tmp/spy.2"; spy3="$tmp/spy.3"; spy4="$tmp/spy.4"
 
 # --- A : version 1.0.0 + digest A ---
 write_registry "1.0.0" "$DIG_A"
-git -C "$T" -c user.email=t@t -c user.name=t commit -qam "déclarer grav-alpha 1.0.0 (A)"
+commit_reg "déclarer grav-alpha 1.0.0 (A)"
 deploy_step "$spy1" A "$tmp/log.1"
 
 # --- B : version 2.0.0 + digest B (mise à jour) ---
 write_registry "2.0.0" "$DIG_B"
-git -C "$T" -c user.email=t@t -c user.name=t commit -qam "mettre à jour grav-alpha -> 2.0.0 (B)"
+commit_reg "mettre à jour grav-alpha -> 2.0.0 (B)"
 deploy_step "$spy2" B "$tmp/log.2"
 
 # --- ROLLBACK vers A : re-déclaration EXPLICITE de 1.0.0 + digest A ---
 write_registry "1.0.0" "$DIG_A"
-git -C "$T" -c user.email=t@t -c user.name=t commit -qam "rollback grav-alpha 2.0.0 -> 1.0.0 (retour à A, référence saine connue)"
+commit_reg "rollback grav-alpha 2.0.0 -> 1.0.0 (retour à A, référence saine connue)"
 deploy_step "$spy3" A "$tmp/log.3"
 
 # --- 1. Séquence observée A -> B -> A ---
@@ -146,7 +162,7 @@ calls="$(grep -c . "$spy3/_calls.log" 2>/dev/null || echo 0)"
 
 # --- 5. Rollback vers le MÊME digest mais une version humaine différente reste explicite ---
 write_registry "1.0.1" "$DIG_A"     # même octets que A, version humaine corrigée
-git -C "$T" -c user.email=t@t -c user.name=t commit -qam "re-déclarer grav-alpha 1.0.1 @même-digest (correction de version humaine)"
+commit_reg "re-déclarer grav-alpha 1.0.1 @même-digest (correction de version humaine)"
 deploy_step "$spy4" A2 "$tmp/log.4"
 if [ "$(pyget "$spy4/grav-alpha.json" grav_version)" = "1.0.1" ] \
    && [ "$(pyget "$spy4/grav-alpha.json" grav_digest)" = "$DIG_A" ]; then

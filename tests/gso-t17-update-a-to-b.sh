@@ -75,6 +75,20 @@ git -C "$T" init -q
 git -C "$T" -c user.email=t@t -c user.name=t add -A >/dev/null
 git -C "$T" -c user.email=t@t -c user.name=t commit -qm "état initial"
 
+# commit_reg <message> : committe la modification du registre de façon FIABLE.
+# `git commit -am` s'appuie sur le cache de stat : une réécriture de MÊME
+# TAILLE (version "1.0.0"<->"1.1.0", digest 64×hex) peut être manquée sous
+# charge. `git add -A` recalcule le hash du contenu -> détection sûre.
+commit_reg() {
+  git -C "$T" -c user.email=t@t -c user.name=t add -A
+  if git -C "$T" diff --cached --quiet; then
+    fail "commit_reg : aucun changement de registre à committer pour « $1 »"; finish
+  fi
+  git -C "$T" -c user.email=t@t -c user.name=t commit -qm "$1"
+  git -C "$T" log -1 --pretty=%s | grep -qxF "$1" \
+    || { fail "commit_reg : le commit « $1 » n'a pas atterri"; finish; }
+}
+
 deploy_step() {  # <spydir> <label> <logfile> ; échoue le test si deploy.sh échoue
   local spy="$1" label="$2" log="$3" rc=0
   mkdir -p "$spy"
@@ -93,12 +107,12 @@ DIG_B="sha256:$(printf 'b%.0s' $(seq 64))"      # sha256 valide (64 hex)
 # --- Déclaration A : version 1.0.0, sans digest ---
 spyA="$tmp/spy.A"; spyB="$tmp/spy.B"
 write_registry "$IMG_A" "1.0.0" ""
-git -C "$T" -c user.email=t@t -c user.name=t commit -qam "déclarer grav-alpha 1.0.0 (A)"
+commit_reg "déclarer grav-alpha 1.0.0 (A)"
 deploy_step "$spyA" A "$tmp/log.A"
 
 # --- Déclaration B : version 1.1.0 + digest, committée ---
 write_registry "$IMG_B" "1.1.0" "$DIG_B"
-git -C "$T" -c user.email=t@t -c user.name=t commit -qam "mettre à jour grav-alpha 1.0.0 -> 1.1.0 @${DIG_B:0:14} (B)"
+commit_reg "mettre à jour grav-alpha 1.0.0 -> 1.1.0 @${DIG_B:0:14} (B)"
 deploy_step "$spyB" B "$tmp/log.B"
 
 pyget() { python3 -c 'import json,sys; d=json.load(open(sys.argv[1])); print(d.get(sys.argv[2],""))' "$1" "$2"; }
