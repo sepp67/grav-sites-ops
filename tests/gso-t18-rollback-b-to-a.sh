@@ -42,7 +42,8 @@ vault_grav_sites:
 vault_retired_grav_sites: {}
 YML
 
-REG="$T/inventories/production/group_vars/all/grav_sites.yml"
+REG_REL="inventories/production/group_vars/all/grav_sites.yml"
+REG="$T/$REG_REL"
 DIG_A="sha256:$(printf 'a%.0s' $(seq 64))"
 DIG_B="sha256:$(printf 'b%.0s' $(seq 64))"
 
@@ -72,24 +73,112 @@ grav_sites:
 YML
 }
 
-git -C "$T" init -q
-git -C "$T" -c user.email=t@t -c user.name=t add -A >/dev/null
-git -C "$T" -c user.email=t@t -c user.name=t commit -qm "état initial"
+_gitT() { git -C "$T" -c user.email=t@t -c user.name=t "$@"; }
 
-# commit_reg <message> : committe la modification du registre de façon FIABLE.
-# `git commit -am` s'appuie sur le cache de stat : une réécriture de MÊME
-# TAILLE (version "1.0.0"<->"2.0.0", digest 64×a<->64×b) peut être manquée sous
-# charge. `git add -A` recalcule le hash du contenu -> détection sûre. On
-# vérifie ensuite que le commit a bien atterri (sinon échec immédiat et net).
+# --------------------------------------------------------------------------
+# Diagnostic PREMIER échec, SANS retry ni temporisation : dump complet sur
+# stderr puis échec net. Utilisé par commit_reg et le contrôle n°3.
+# --------------------------------------------------------------------------
+DEPLOY_RCS=""            # « label:rc » séparés par des espaces
+_reg_step=0
+_dump() {  # <contexte> <raison>
+  {
+    echo "================ GSO-T18 DIAG : $1 ================"
+    echo "raison        : $2"
+    echo "étape commit  : $_reg_step"
+    echo "deploy rc     : ${DEPLOY_RCS:-<aucun>}"
+    echo "-- git rev-parse HEAD / symbolic-ref --"
+    git -C "$T" rev-parse HEAD 2>&1; git -C "$T" symbolic-ref HEAD 2>&1
+    echo "-- git log --oneline --decorate -n 8 --"
+    git -C "$T" log --oneline --decorate -n 8 2>&1
+    echo "-- git status --short --"
+    git -C "$T" status --short 2>&1
+    echo "-- git diff --"
+    git -C "$T" diff 2>&1
+    echo "-- git diff --cached --"
+    git -C "$T" diff --cached 2>&1
+    echo "-- git reflog -8 --"
+    git -C "$T" reflog -8 2>&1
+    echo "-- registre déclaré sur disque ($REG_REL) --"
+    sed 's/^/   | /' "$REG" 2>&1
+    echo "-- registre dans l'index (git show :$REG_REL) --"
+    git -C "$T" show ":$REG_REL" 2>&1 | sed 's/^/   | /'
+    echo "-- registre dans HEAD (git show HEAD:$REG_REL) --"
+    git -C "$T" show "HEAD:$REG_REL" 2>&1 | sed 's/^/   | /'
+    echo "-- traces de la doublure --"
+    for s in "$tmp"/spy.*; do
+      [ -d "$s" ] || continue
+      echo "   [$s/grav-alpha.json]"; sed 's/^/     /' "$s/grav-alpha.json" 2>/dev/null
+      echo "   [$s/_calls.log]"; sed 's/^/     /' "$s/_calls.log" 2>/dev/null
+    done
+    echo "-- .git : verrous / gc / MERGE --"
+    ls -la "$T/.git/" 2>&1 | grep -iE 'lock|gc|MERGE|packed-refs|HEAD' || true
+    echo "-- git fsck --"
+    { git -C "$T" fsck --no-progress --no-dangling 2>&1 || true; } | sed -n '1,10p'
+    echo "================ FIN DIAG ================"
+  } >&2
+}
+
+# commit_reg <message> <version_attendue> <digest_attendu>
+# Committe la modification du registre et ÉCHOUE IMMÉDIATEMENT (dump) si :
+#   (a) le changement attendu n'est pas dans l'index ;
+#   (b) le contenu indexé ne correspond pas à la déclaration (version+digest) ;
+#   (c) `git commit` ne crée pas EXACTEMENT un nouveau commit ;
+#   (d) le nouveau HEAD reste égal à l'ancien ;
+#   (e) le sujet OU le contenu du commit ne correspond pas à l'étape attendue.
+# Aucun retry, aucune temporisation, aucune tolérance à l'absence du commit.
 commit_reg() {
-  git -C "$T" -c user.email=t@t -c user.name=t add -A
-  if git -C "$T" diff --cached --quiet; then
-    fail "commit_reg : aucun changement de registre à committer pour « $1 »"; finish
+  local msg="$1" exp_ver="$2" exp_dig="$3"
+  _reg_step=$((_reg_step + 1))
+  local h0 n0 h1 n1 staged committed
+  h0="$(git -C "$T" rev-parse HEAD)"
+  n0="$(git -C "$T" rev-list --count HEAD)"
+
+  _gitT add -A
+
+  # (a) changement attendu dans l'index
+  if git -C "$T" diff --cached --quiet -- "$REG_REL"; then
+    _dump "commit_reg #$_reg_step ($msg)" "(a) aucun changement de $REG_REL dans l'index"
+    fail "commit_reg (a) : $msg"; finish
   fi
-  git -C "$T" -c user.email=t@t -c user.name=t commit -qm "$1"
-  # le commit DOIT avoir atterri (défaut de verrou d'index, etc. -> échec net ici)
-  git -C "$T" log -1 --pretty=%s | grep -qxF "$1" \
-    || { fail "commit_reg : le commit « $1 » n'a pas atterri"; finish; }
+  # (b) contenu indexé == déclaration
+  # (here-string, PAS de pipeline `... | grep -q` : sous `set -o pipefail`,
+  #  un `grep -q` qui sort tôt fait recevoir SIGPIPE au producteur -> le
+  #  statut du pipeline devient 141 même quand grep A trouvé la ligne.)
+  staged="$(git -C "$T" show ":$REG_REL" 2>/dev/null || true)"
+  if ! grep -qF "version: \"$exp_ver\"" <<<"$staged" \
+     || ! grep -qF "digest: \"$exp_dig\"" <<<"$staged"; then
+    _dump "commit_reg #$_reg_step ($msg)" "(b) index != déclaré (attendu version=$exp_ver digest=$exp_dig)"
+    fail "commit_reg (b) : $msg"; finish
+  fi
+
+  _gitT commit -qm "$msg"
+
+  h1="$(git -C "$T" rev-parse HEAD)"
+  n1="$(git -C "$T" rev-list --count HEAD)"
+
+  # (c) exactement un nouveau commit
+  if [ "$n1" != "$((n0 + 1))" ]; then
+    _dump "commit_reg #$_reg_step ($msg)" "(c) nombre de commits $n0 -> $n1 (attendu $((n0 + 1)))"
+    fail "commit_reg (c) : $msg"; finish
+  fi
+  # (d) HEAD a bougé
+  if [ "$h1" = "$h0" ]; then
+    _dump "commit_reg #$_reg_step ($msg)" "(d) HEAD inchangé ($h0)"
+    fail "commit_reg (d) : $msg"; finish
+  fi
+  # (e) sujet + contenu du nouveau HEAD
+  if [ "$(git -C "$T" log -1 --pretty=%s)" != "$msg" ]; then
+    _dump "commit_reg #$_reg_step ($msg)" "(e) sujet HEAD « $(git -C "$T" log -1 --pretty=%s) » != « $msg »"
+    fail "commit_reg (e-sujet) : $msg"; finish
+  fi
+  committed="$(git -C "$T" show "HEAD:$REG_REL" 2>/dev/null || true)"
+  if ! grep -qF "version: \"$exp_ver\"" <<<"$committed" \
+     || ! grep -qF "digest: \"$exp_dig\"" <<<"$committed"; then
+    _dump "commit_reg #$_reg_step ($msg)" "(e) contenu committé != déclaré"
+    fail "commit_reg (e-contenu) : $msg"; finish
+  fi
+  pass "commit_reg #$_reg_step : « $msg » committé (${h0:0:9} -> ${h1:0:9}, version=$exp_ver)"
 }
 
 seq_log="$tmp/sequence.log"    # journal synthétique append-only (orchestration)
@@ -98,7 +187,12 @@ deploy_step() {  # <spydir> <label> <logfile>
   local spy="$1" label="$2" log="$3" rc=0
   mkdir -p "$spy"
   ( cd "$T" && GSO_SPY_OUTPUT="$spy" bash scripts/deploy.sh grav-alpha ) > "$log" 2>&1 || rc=$?
-  if [ "$rc" != 0 ]; then sed 's/^/   | /' "$log" | tail -12; fail "deploy.sh a échoué ($label, rc=$rc)"; finish; fi
+  DEPLOY_RCS="$DEPLOY_RCS $label:$rc"
+  if [ "$rc" != 0 ]; then
+    sed 's/^/   | /' "$log" | tail -20
+    _dump "deploy_step $label" "deploy.sh rc=$rc"
+    fail "deploy.sh a échoué ($label, rc=$rc)"; finish
+  fi
   # trace synthétique append-only : reconstruit la référence effective à la
   # manière du rôle (image@digest si digest, sinon image:version).
   python3 - "$spy/grav-alpha.json" "$label" >> "$seq_log" <<'PY'
@@ -114,19 +208,23 @@ pyget() { python3 -c 'import json,sys; print(json.load(open(sys.argv[1])).get(sy
 
 spy1="$tmp/spy.1"; spy2="$tmp/spy.2"; spy3="$tmp/spy.3"; spy4="$tmp/spy.4"
 
+git -C "$T" init -q
+_gitT add -A >/dev/null
+_gitT commit -qm "état initial"
+
 # --- A : version 1.0.0 + digest A ---
 write_registry "1.0.0" "$DIG_A"
-commit_reg "déclarer grav-alpha 1.0.0 (A)"
+commit_reg "déclarer grav-alpha 1.0.0 (A)" "1.0.0" "$DIG_A"
 deploy_step "$spy1" A "$tmp/log.1"
 
 # --- B : version 2.0.0 + digest B (mise à jour) ---
 write_registry "2.0.0" "$DIG_B"
-commit_reg "mettre à jour grav-alpha -> 2.0.0 (B)"
+commit_reg "mettre à jour grav-alpha -> 2.0.0 (B)" "2.0.0" "$DIG_B"
 deploy_step "$spy2" B "$tmp/log.2"
 
 # --- ROLLBACK vers A : re-déclaration EXPLICITE de 1.0.0 + digest A ---
 write_registry "1.0.0" "$DIG_A"
-commit_reg "rollback grav-alpha 2.0.0 -> 1.0.0 (retour à A, référence saine connue)"
+commit_reg "rollback grav-alpha 2.0.0 -> 1.0.0 (retour à A, référence saine connue)" "1.0.0" "$DIG_A"
 deploy_step "$spy3" A "$tmp/log.3"
 
 # --- 1. Séquence observée A -> B -> A ---
@@ -142,9 +240,22 @@ ok=1
              || fail "une référence transmise ne correspond pas à la déclaration committée"
 
 # --- 3. Le rollback est une déclaration Git explicite, pas une déduction ---
-if git -C "$T" log --oneline | grep -qi 'rollback grav-alpha'; then
+# commit_reg a DÉJÀ prouvé (checks a-e) que le commit du rollback a été créé,
+# que HEAD a bougé et que son sujet est exact. Ce contrôle vérifie que ce
+# commit est toujours dans l'historique atteignable.
+#
+# On CAPTURE d'abord la sortie de `git log` puis on cherche dans une
+# here-string. Un `git log --pretty=%s | grep -qxF …` est PIÉGÉ sous
+# `set -o pipefail` (common.sh) : `grep -q` sort dès la 1ʳᵉ ligne (le commit
+# de rollback EST HEAD), `git log` reçoit SIGPIPE, sort en 141, et `pipefail`
+# fait échouer le pipeline ALORS QUE grep a trouvé la ligne — d'où un faux
+# « rollback non tracé » intermittent (plus fréquent sous charge, quand
+# `git log` est lent à vider son tampon). Cause racine de l'aléa GSO-T18.
+_t18_subjects="$(git -C "$T" log --pretty=%s)"
+if grep -qxF "rollback grav-alpha 2.0.0 -> 1.0.0 (retour à A, référence saine connue)" <<<"$_t18_subjects"; then
   pass "le rollback est une re-déclaration explicite committée (GSO-REQ-112, procédure §15.4)"
 else
+  _dump "contrôle n°3" "le commit de rollback n'est pas dans git log --pretty=%s"
   fail "rollback non tracé dans l'historique Git"
 fi
 # le digest du rollback vient du registre committé, pas d'un historique Docker
@@ -162,7 +273,7 @@ calls="$(grep -c . "$spy3/_calls.log" 2>/dev/null || echo 0)"
 
 # --- 5. Rollback vers le MÊME digest mais une version humaine différente reste explicite ---
 write_registry "1.0.1" "$DIG_A"     # même octets que A, version humaine corrigée
-commit_reg "re-déclarer grav-alpha 1.0.1 @même-digest (correction de version humaine)"
+commit_reg "re-déclarer grav-alpha 1.0.1 @même-digest (correction de version humaine)" "1.0.1" "$DIG_A"
 deploy_step "$spy4" A2 "$tmp/log.4"
 if [ "$(pyget "$spy4/grav-alpha.json" grav_version)" = "1.0.1" ] \
    && [ "$(pyget "$spy4/grav-alpha.json" grav_digest)" = "$DIG_A" ]; then
@@ -178,7 +289,7 @@ cns="$(for s in "$spy1" "$spy2" "$spy3" "$spy4"; do pyget "$s/grav-alpha.json" g
   || fail "un chemin structurant a changé pendant la séquence de rollback"
 
 # --- 7. Aucune restauration / modification de contenu ; aucune opération destructive ---
-if grep -qiE 'down --volumes|volume rm|volume prune|rm -rf|rsync|restore|state: absent' "$tmp"/log.*; then
+if grep -qiE 'down --volumes|volume rm|volume prune|rm -rf|rsync|restore|state: absent' "$tmp"/log.[1-4]; then
   fail "trace d'opération de restauration ou de destruction dans la sortie"
 else
   pass "rollback : aucune restauration de contenu, aucune opération destructive (GSO-REQ-113)"
@@ -201,17 +312,19 @@ lock_dir="${XDG_RUNTIME_DIR:-${TMPDIR:-/tmp}}/grav-sites-ops/locks"
 ( exec 9>"$lock_dir/grav-alpha.lock"; flock -n 9 ) \
   && pass "verrou par site libéré après le rollback (même verrou que deploy)" || fail "verrou resté tenu"
 
-# --- 9. Aucune modification automatique du registre ---
-if git -C "$T" status --porcelain | grep -q .; then
-  fail "le registre (ou un fichier suivi) a été modifié automatiquement par une exécution"
+# --- 9. Aucune modification automatique du registre (capture, pas de pipeline) ---
+_t18_status="$(git -C "$T" status --porcelain)"
+if [ -n "$_t18_status" ]; then
+  _dump "contrôle n°9" "le dépôt de test est modifié après les exécutions"
+  fail "le registre (ou un fichier suivi) a été modifié automatiquement par une exécution : $_t18_status"
 else
   pass "aucune modification automatique du registre : seule la main humaine committe (GSO-REQ-109/126)"
 fi
 
 # --- 10. Propagation d'erreur : une déclaration incohérente échoue proprement ---
 write_registry "3.0.0" "sha256:tropcourt"
-rc=0; ( cd "$T" && GSO_SPY_OUTPUT="$tmp/spy.bad" bash scripts/deploy.sh grav-alpha ) >/tmp/o 2>&1 || rc=$?
-git -C "$T" -c user.email=t@t -c user.name=t checkout -q -- "$REG"
+rc=0; ( cd "$T" && GSO_SPY_OUTPUT="$tmp/spy.bad" bash scripts/deploy.sh grav-alpha ) > "$tmp/log.bad" 2>&1 || rc=$?
+_gitT checkout -q -- "$REG_REL"
 { [ "$rc" != 0 ] && [ ! -f "$tmp/spy.bad/_calls.log" ]; } \
   && pass "déclaration incohérente : échec propagé (rc=$rc), rôle non invoqué, aucun enchaînement automatique" \
   || fail "erreur mal propagée sur déclaration incohérente (rc=$rc)"
@@ -223,8 +336,9 @@ else
   fail "capture croisée du site non ciblé"
 fi
 
-# --- 12. Pas de fuite de secret ---
-grep -qE 'SYNTH-T18-[AB]-PW' "$tmp"/log.* && fail "fuite d'un secret" || pass "aucune valeur secrète dans les sorties"
+# --- 12. Pas de fuite de secret (toutes les sorties, y compris le chemin d'erreur) ---
+grep -qE 'SYNTH-T18-[AB]-PW' "$tmp"/log.1 "$tmp"/log.2 "$tmp"/log.3 "$tmp"/log.4 "$tmp"/log.bad \
+  && fail "fuite d'un secret" || pass "aucune valeur secrète dans les sorties"
 
 gso_assert_runtime_clean
 finish

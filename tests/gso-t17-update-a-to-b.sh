@@ -39,7 +39,8 @@ vault_grav_sites:
 vault_retired_grav_sites: {}
 YML
 
-REG="$T/inventories/production/group_vars/all/grav_sites.yml"
+REG_REL="inventories/production/group_vars/all/grav_sites.yml"
+REG="$T/$REG_REL"
 
 # Registre d'un site à une référence donnée. base_directory / container_name
 # NE changent JAMAIS entre A et B : seules l'image/version/digest bougent.
@@ -75,26 +76,78 @@ git -C "$T" init -q
 git -C "$T" -c user.email=t@t -c user.name=t add -A >/dev/null
 git -C "$T" -c user.email=t@t -c user.name=t commit -qm "état initial"
 
-# commit_reg <message> : committe la modification du registre de façon FIABLE.
-# `git commit -am` s'appuie sur le cache de stat : une réécriture de MÊME
-# TAILLE (version "1.0.0"<->"1.1.0", digest 64×hex) peut être manquée sous
-# charge. `git add -A` recalcule le hash du contenu -> détection sûre.
+_gitT() { git -C "$T" -c user.email=t@t -c user.name=t "$@"; }
+DEPLOY_RCS=""
+_reg_step=0
+_dump() {  # <contexte> <raison>
+  {
+    echo "================ GSO-T17 DIAG : $1 ================"
+    echo "raison : $2 (étape commit $_reg_step ; deploy rc :${DEPLOY_RCS:- <aucun>})"
+    echo "-- HEAD --"; git -C "$T" rev-parse HEAD 2>&1; git -C "$T" symbolic-ref HEAD 2>&1
+    echo "-- git log --oneline --decorate -n 8 --"; git -C "$T" log --oneline --decorate -n 8 2>&1
+    echo "-- git status --short --"; git -C "$T" status --short 2>&1
+    echo "-- git diff --"; git -C "$T" diff 2>&1
+    echo "-- git diff --cached --"; git -C "$T" diff --cached 2>&1
+    echo "-- git reflog -8 --"; git -C "$T" reflog -8 2>&1
+    echo "-- registre sur disque --"; sed 's/^/   | /' "$REG" 2>&1
+    echo "-- registre dans HEAD --"; git -C "$T" show "HEAD:$REG_REL" 2>&1 | sed 's/^/   | /'
+    echo "-- traces doublure --"
+    for s in "$tmp"/spy.*; do [ -d "$s" ] || continue
+      echo "   [$s]"; sed 's/^/     /' "$s/grav-alpha.json" 2>/dev/null; sed 's/^/     /' "$s/_calls.log" 2>/dev/null
+    done
+    echo "================ FIN DIAG ================"
+  } >&2
+}
+
+# commit_reg <message> <version_attendue> <digest_attendu>
+# ÉCHOUE IMMÉDIATEMENT (dump) si : (a) le changement attendu n'est pas dans
+# l'index ; (b) le contenu indexé != déclaration ; (c) `git commit` ne crée
+# pas EXACTEMENT un commit ; (d) HEAD inchangé ; (e) sujet/contenu du nouveau
+# HEAD != étape attendue. Aucun retry, aucune temporisation.
+# Les vérifications utilisent des HERE-STRINGS, jamais `... | grep -q` : sous
+# `set -o pipefail`, un `grep -q` qui sort tôt fait échouer le pipeline
+# (SIGPIPE 141 du producteur) ALORS que la ligne a été trouvée.
 commit_reg() {
-  git -C "$T" -c user.email=t@t -c user.name=t add -A
-  if git -C "$T" diff --cached --quiet; then
-    fail "commit_reg : aucun changement de registre à committer pour « $1 »"; finish
+  local msg="$1" exp_ver="$2" exp_dig="$3"
+  _reg_step=$((_reg_step + 1))
+  local h0 n0 h1 n1 staged committed
+  h0="$(git -C "$T" rev-parse HEAD)"; n0="$(git -C "$T" rev-list --count HEAD)"
+  _gitT add -A
+  if git -C "$T" diff --cached --quiet -- "$REG_REL"; then
+    _dump "commit_reg #$_reg_step ($msg)" "(a) aucun changement de $REG_REL dans l'index"
+    fail "commit_reg (a) : $msg"; finish
   fi
-  git -C "$T" -c user.email=t@t -c user.name=t commit -qm "$1"
-  git -C "$T" log -1 --pretty=%s | grep -qxF "$1" \
-    || { fail "commit_reg : le commit « $1 » n'a pas atterri"; finish; }
+  staged="$(git -C "$T" show ":$REG_REL" 2>/dev/null || true)"
+  if ! grep -qF "version: \"$exp_ver\"" <<<"$staged" || ! grep -qF "digest: \"$exp_dig\"" <<<"$staged"; then
+    _dump "commit_reg #$_reg_step ($msg)" "(b) index != déclaré (version=$exp_ver digest=$exp_dig)"
+    fail "commit_reg (b) : $msg"; finish
+  fi
+  _gitT commit -qm "$msg"
+  h1="$(git -C "$T" rev-parse HEAD)"; n1="$(git -C "$T" rev-list --count HEAD)"
+  if [ "$n1" != "$((n0 + 1))" ]; then
+    _dump "commit_reg #$_reg_step ($msg)" "(c) commits $n0 -> $n1 (attendu +1)"; fail "commit_reg (c) : $msg"; finish
+  fi
+  if [ "$h1" = "$h0" ]; then
+    _dump "commit_reg #$_reg_step ($msg)" "(d) HEAD inchangé"; fail "commit_reg (d) : $msg"; finish
+  fi
+  if [ "$(git -C "$T" log -1 --pretty=%s)" != "$msg" ]; then
+    _dump "commit_reg #$_reg_step ($msg)" "(e) sujet HEAD != « $msg »"; fail "commit_reg (e-sujet) : $msg"; finish
+  fi
+  committed="$(git -C "$T" show "HEAD:$REG_REL" 2>/dev/null || true)"
+  if ! grep -qF "version: \"$exp_ver\"" <<<"$committed" || ! grep -qF "digest: \"$exp_dig\"" <<<"$committed"; then
+    _dump "commit_reg #$_reg_step ($msg)" "(e) contenu committé != déclaré"; fail "commit_reg (e-contenu) : $msg"; finish
+  fi
+  pass "commit_reg #$_reg_step : « $msg » committé (${h0:0:9} -> ${h1:0:9}, version=$exp_ver)"
 }
 
 deploy_step() {  # <spydir> <label> <logfile> ; échoue le test si deploy.sh échoue
   local spy="$1" label="$2" log="$3" rc=0
   mkdir -p "$spy"
   ( cd "$T" && GSO_SPY_OUTPUT="$spy" bash scripts/deploy.sh grav-alpha ) > "$log" 2>&1 || rc=$?
+  DEPLOY_RCS="$DEPLOY_RCS $label:$rc"
   if [ "$rc" != 0 ]; then
-    sed 's/^/   | /' "$log" | tail -12
+    sed 's/^/   | /' "$log" | tail -20
+    _dump "deploy_step $label" "deploy.sh rc=$rc"
     fail "deploy.sh a échoué pour la déclaration $label (rc=$rc)"
     finish
   fi
@@ -107,12 +160,12 @@ DIG_B="sha256:$(printf 'b%.0s' $(seq 64))"      # sha256 valide (64 hex)
 # --- Déclaration A : version 1.0.0, sans digest ---
 spyA="$tmp/spy.A"; spyB="$tmp/spy.B"
 write_registry "$IMG_A" "1.0.0" ""
-commit_reg "déclarer grav-alpha 1.0.0 (A)"
+commit_reg "déclarer grav-alpha 1.0.0 (A)" "1.0.0" ""
 deploy_step "$spyA" A "$tmp/log.A"
 
 # --- Déclaration B : version 1.1.0 + digest, committée ---
 write_registry "$IMG_B" "1.1.0" "$DIG_B"
-commit_reg "mettre à jour grav-alpha 1.0.0 -> 1.1.0 @${DIG_B:0:14} (B)"
+commit_reg "mettre à jour grav-alpha 1.0.0 -> 1.1.0 @${DIG_B:0:14} (B)" "1.1.0" "$DIG_B"
 deploy_step "$spyB" B "$tmp/log.B"
 
 pyget() { python3 -c 'import json,sys; d=json.load(open(sys.argv[1])); print(d.get(sys.argv[2],""))' "$1" "$2"; }
@@ -222,9 +275,13 @@ else
 fi
 
 # --- 9. La décision A puis B est tracée dans l'historique Git (procédure §15.1) ---
-if git -C "$T" log --oneline | grep -q 'mettre à jour grav-alpha 1.0.0 -> 1.1.0'; then
+# CAPTURE puis here-string : `git log | grep -q` est piégé sous `set -o
+# pipefail` (SIGPIPE 141 du producteur quand grep -q sort tôt) — cf. GSO-T18.
+_t17_log="$(git -C "$T" log --oneline)"
+if grep -q 'mettre à jour grav-alpha 1.0.0 -> 1.1.0' <<<"$_t17_log"; then
   pass "la mise à jour est une déclaration committée, visible dans l'historique Git"
 else
+  _dump "contrôle n°9" "la mise à jour n'est pas visible dans git log --oneline"
   fail "décision de mise à jour non tracée"
 fi
 
