@@ -352,6 +352,27 @@ noyau libère le descripteur en succès, échec ou interruption. Le sélecteur, 
 préflight et le **contrôle de dérive** (`check` / `check-all`), en lecture
 seule, restent exécutables sans restriction et **ne prennent aucun verrou**.
 
+## Mode `--check` (contrat §13.8 — GSO-REQ-091)
+
+`ansible-playbook … --check` peut être ajouté à `deploy-site.yml` comme
+**vérification complémentaire** : il exécute les assertions du play et le
+second préflight structurel (marqué `check_mode: false`, il tourne réellement),
+puis simule l'invocation du rôle.
+
+**`--check` NE constitue PAS :**
+
+- un déploiement fonctionnel — le rôle n'écrit rien, ne tire aucune image, ne
+  démarre aucun conteneur ;
+- une preuve de santé Docker ou de l'endpoint HTTP — aucune tâche de
+  `healthcheck` ne peut donner un résultat fiable en mode simulation ;
+- un substitut à `make check SITE=<hôte>` (contrôle de dérive, lecture seule)
+  ni à un `deploy` réel.
+
+Les tâches du rôle `sepp67.grav_site` qui rendent un conteneur, attendent un
+healthcheck ou interrogent un endpoint sont, par nature, **non fiables en
+`--check`** : leur résultat en mode simulation ne doit pas être interprété.
+Pour une vérification sans mutation, utiliser `check` / `check-all`.
+
 ## Ce que le sélecteur / préflight ne font jamais
 
 - ouvrir ou déchiffrer un vault opérationnel ;
