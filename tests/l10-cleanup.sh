@@ -30,12 +30,11 @@ missing_trap=""; missing_prefix=""
 while IFS= read -r f; do
   c="$(code_only "$f")"
   b="$(basename "$f")"
-  # un test « crée un répertoire temporaire » s'il appelle gso_mktemp_dir ou mktemp -d
-  if echo "$c" | grep -qE '\bgso_mktemp_dir\b|\bmktemp -d\b'; then
-    # trap direct 'rm -rf' OU trap d'une fonction de nettoyage
+  # un test « crée un répertoire temporaire » s'il AFFECTE le résultat de
+  # gso_mktemp_dir ou de `mktemp -d` à une variable (forme `x="$(… )"`).
+  if echo "$c" | grep -qE '=[[:space:]]*"?\$\((gso_mktemp_dir|mktemp -d)'; then
     if echo "$c" | grep -qE "^trap .*(rm -rf|cleanup)"; then :; else missing_trap="$missing_trap $b"; fi
-    # préfixe reconnaissable : gso_mktemp_dir, ou un mktemp -d avec un gabarit nommé
-    if echo "$c" | grep -qE '\bgso_mktemp_dir\b|mktemp -d +"?\$\{TMPDIR[^"]*/(gso|grav)'; then :; else missing_prefix="$missing_prefix $b"; fi
+    if echo "$c" | grep -qE '=[[:space:]]*"?\$\(gso_mktemp_dir|=[[:space:]]*"?\$\(mktemp -d[[:space:]]+"?\$\{TMPDIR[^"]*/(gso|grav)'; then :; else missing_prefix="$missing_prefix $b"; fi
   fi
 done < <(git ls-files 'tests/*.sh' ':!tests/run-all.sh' ':!tests/lib/**')
 

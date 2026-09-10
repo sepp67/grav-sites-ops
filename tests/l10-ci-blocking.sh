@@ -16,6 +16,10 @@ cd "$REPO_ROOT"
 CI=".github/workflows/ci.yml"
 [ -f "$CI" ] && pass "$CI présent" || { fail "$CI absent"; finish; }
 
+# CI sans les commentaires YAML (les commentaires citent volontairement les
+# motifs interdits — GSO-REQ-030/046/145 — pour documenter les garde-fous).
+CI_CODE="$(grep -vE '^[[:space:]]*#' "$CI")"
+
 # --- yaml parsable ---
 python3 -c 'import yaml,sys; yaml.safe_load(open(sys.argv[1]))' "$CI" \
   && pass "$CI : YAML valide" || fail "$CI : YAML invalide"
@@ -23,7 +27,7 @@ python3 -c 'import yaml,sys; yaml.safe_load(open(sys.argv[1]))' "$CI" \
 # --------------------------------------------------------------------------
 # GSO-REQ-145 — jobs bloquants : aucun continue-on-error
 # --------------------------------------------------------------------------
-if grep -qE 'continue-on-error' "$CI"; then
+if printf %s "$CI_CODE" | grep -qE 'continue-on-error'; then
   fail "GSO-REQ-145 : continue-on-error présent — un job pourrait ne pas bloquer"
 else
   pass "GSO-REQ-145 : aucun continue-on-error (tous les jobs bloquent)"
@@ -48,7 +52,7 @@ PY
 # --------------------------------------------------------------------------
 # GSO-REQ-030 / 046 / 058 — CI non opérationnelle
 # --------------------------------------------------------------------------
-if grep -qE 'inventories/production/|group_vars/all/vault\.yml|ANSIBLE_VAULT|--ask-vault-pass|--vault-password-file|ssh-agent|SSH_PRIVATE_KEY|secrets\.[A-Z]' "$CI"; then
+if printf %s "$CI_CODE" | grep -qE 'inventories/production/|group_vars/all/vault\.yml|ANSIBLE_VAULT|--ask-vault-pass|--vault-password-file|ssh-agent|SSH_PRIVATE_KEY|secrets\.[A-Z]'; then
   fail "GSO-REQ-030/046/058 : la CI référence un inventaire de production / vault / clé SSH / secret"
 else
   pass "GSO-REQ-030/046/058 : la CI ne référence ni inventories/production/, ni vault, ni clé SSH, ni secret GitHub"
@@ -63,7 +67,7 @@ fi
 # --------------------------------------------------------------------------
 # tous les tests de la CI utilisent inventories/example/ ou une fixture/mktemp ;
 # aucun n'exige inventories/production/group_vars/all/vault.yml
-if git grep -nIE "inventories/production/group_vars/all/vault\.yml" -- tests/ ; then
+if git grep -nIE "inventories/production/group_vars/all/vault\.yml" -- tests/ ":!tests/l10-ci-blocking.sh" ; then
   fail "GSO-REQ-139 : un test exige le vault de production"
 else
   pass "GSO-REQ-139 : aucun test n'exige le vault de production"
@@ -74,7 +78,7 @@ grep -q 'fonctionne sans .inventories/production' "$CI" && pass "$CI : en-tête 
 # --------------------------------------------------------------------------
 # GSO-REQ-074 — contrôle automatique anti-fuite de secrets dans la CI
 # --------------------------------------------------------------------------
-if grep -qE 'gso-t24' "$CI"; then
+if printf %s "$CI_CODE" | grep -qE 'gso-t24'; then
   pass "GSO-REQ-074 : GSO-T24 (anti-fuite de secrets / chemins locaux) est dans la CI"
 else
   fail "GSO-REQ-074 : GSO-T24 absent de la CI"
@@ -83,15 +87,15 @@ fi
 # --------------------------------------------------------------------------
 # GSO-REQ-146 — interpréteurs bornés (pas de 3.x, pas de core non borné)
 # --------------------------------------------------------------------------
-if grep -qE 'python-version: *"3\.x"|python-version: *3\.x|python-version: *"3"' "$CI"; then
+if printf %s "$CI_CODE" | grep -qE 'python-version: *"3\.x"|python-version: *3\.x|python-version: *"3"'; then
   fail "GSO-REQ-146 : python-version flottant (3.x)"
 else
   pass "GSO-REQ-146 : python-version épinglé (mineure explicite)"
 fi
-if grep -qE 'ansible-core>=[0-9.]+"' "$CI"; then
+if printf %s "$CI_CODE" | grep -qE 'ansible-core>=[0-9.]+"'; then
   fail "GSO-REQ-146 : ansible-core sans borne supérieure (rupture majeure possible)"
 else
-  grep -qE 'ansible-core>=[0-9.]+,<[0-9.]+' "$CI" \
+  printf %s "$CI_CODE" | grep -qE 'ansible-core>=[0-9.]+,<[0-9.]+' \
     && pass "GSO-REQ-146 : ansible-core borné haut et bas" \
     || fail "GSO-REQ-146 : ansible-core non borné"
 fi
