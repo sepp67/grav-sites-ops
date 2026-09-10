@@ -48,16 +48,23 @@ inventée**.
 
 ## 2. Batterie reproductible — `make test-reproducible`
 
-**Dernière exécution observée** — commit `be9b3ad`, date 2026-09-10,
-environnement §1.
+**Dernière exécution observée** — branche `correctif/ci-192-post-push` @
+`3dd6cc2`, date 2026-09-10, environnement §1.
 **Commande :** `make clean && make install-role && make test-reproducible`.
 **Résultat global : 35 tests exécutés, 35 réussis, 0 échec**
 (`GSO-T15` non inclus — voir §3 ; sortie du lanceur : `Total : 35   Reussis : 35   Echecs : 0`).
-Stable : **35 / 35 sur 12 exécutions séquentielles consécutives** (machine
-au repos ; le harnais n'a aucun mécanisme de ré-essai). `GSO-T17` / `GSO-T18`
-ont reçu un correctif de fiabilité du commit de registre (`git add -A` +
-vérification) après un échec intermittent constaté en batterie chargée sur
-`GSO-T18` (« rollback non tracé ») — voir le rapport d'exécution L11 §3.5.
+Stable : **35 / 35 sur 5 exécutions séquentielles** + **`GSO-T18` seul 30 / 30
+séquentiels**, machine au repos (le harnais n'a **aucun mécanisme de
+ré-essai**).
+
+**Aléa `GSO-T18` « rollback non tracé » — cause racine établie et corrigée**
+(commit `3dd6cc2`) : `common.sh` fait `set -o pipefail` ; le contrôle
+`git log --oneline | grep -qi 'rollback grav-alpha'` était piégé — `grep -q`
+trouve la 1ʳᵉ ligne et sort, `git log` (encore en écriture) reçoit SIGPIPE et
+sort en 141, `pipefail` fait échouer le pipeline **alors que grep a trouvé la
+ligne**, d'où un faux négatif intermittent. Corrigé sur `GSO-T17` / `GSO-T18`
+par **capture + here-string** (jamais `git … | grep -q`) ; `commit_reg` durci
+(échec immédiat si le commit du registre ne se matérialise pas exactement).
 
 | Test | Scénario | Nature | Résultat |
 |---|---|---|---|
