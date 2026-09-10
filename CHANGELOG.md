@@ -37,6 +37,15 @@ et le versionnement sémantique.
 - `README.md` : lot L11 ; état d'acceptation ; licence signalée bloquante.
 - `.github/workflows/ci.yml` : étape `l11-acceptance-guards` dans `static`.
 
+### Corrigé — lot L11 (robustesse du harnais)
+
+- `l9-migration-doc-guard`, `l8-history-append-only` : suppression des
+  contrôles absolus `git status --porcelain` (échouaient dès qu'un fichier
+  suivi **sans rapport** était modifié dans le working tree) → comparaison
+  **avant / après** : le test ne doit rien modifier de suivi.
+- `l10-cleanup` : journal de l'échantillon dynamique écrit hors du dépôt
+  (n'était plus vu par `git status` le temps de l'exécution).
+
 Aucun `push`, tag, release, migration réelle, dépôt distant, vault ou
 inventaire opérationnel. Aucun nouvel identifiant `GSO-T`.
 
