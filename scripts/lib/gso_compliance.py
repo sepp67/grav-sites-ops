@@ -177,25 +177,25 @@ ENTRY: dict[str, tuple[str, str]] = {
     "142": ("l10-multisite-isolation + GSO-T16 + GSO-T14", "T"),
     "143": ("GSO-T17/T18 (pages/accounts/data/images séparés)", "T"),
     "144": ("GSO-T19/T20 + l7-persistence-guard (aucun fichier/conteneur modifié)", "T"),
-    "145": ("l10-ci-blocking (job conformance ; aucun continue-on-error)", "T"),
+    "145": ("l10-ci-blocking (job conformance ; aucun continue-on-error) + run distant 34513250088 (une etape rouge a bloque la porte conformance)", "T"),
     "146": ("l10-ci-blocking (python 3.12, ansible-core >=2.17,<2.19)", "T"),
-    "147": ("docs/TEST-RESULTS.md + l10-ci-blocking (CI distante non observée)", "T"),
+    "147": ("docs/TEST-RESULTS.md + l10-ci-blocking : CI distante DESORMAIS observee (run 34513250088), etat consigne sans surqualification (run global pas encore vert)", "T"),
     "148": ("GSO-T21 + l10-cleanup (retrait simulé)", "T"),
     "149": ("l10-cleanup (zéro résidu) + GSO-T15 §10", "T"),
     "150": ("docs/COMPLIANCE-MATRIX.md + docs/TEST-RESULTS.md", "S"),
     # --- L11 (acceptation) : revues documentaires exécutées + 3 bloquées ---
-    "158": ("docs/ACCEPTANCE.md §3 — commande de tag et SHA candidat préparés ; CI distante verte requise (non exécutée)", "N"),
+    "158": ("aucun tag ; CI distante desormais executee (run 34513250088) mais PAS globalement verte ; le SHA final de release (avec LICENSE+version+CHANGELOG) devra avoir un run global vert", "N"),
     "159": ("l11-acceptance-guards (ci.yml sans déclencheur release/tag ; aucune étape de déploiement en CI)", "D"),
     "183": ("l11-acceptance-guards + GSO-T23 + REGISTRY-SCHEMA.md (aucune notion de publication dans le registre)", "D"),
     "184": ("audit-grav-sites-ops/01..08 antérieurs au premier commit de construction ; docs/GOVERNANCE.md", "D"),
     "185": ("l11-acceptance-guards (premier commit 4a4eab0 = README.md seul, aucune capacité de déploiement)", "D"),
     "186": ("revue de matrice — aucun TEST GAP : sélection GSO-T08..T12, secrets GSO-T07/T14/T24, persistance GSO-T17/T18, rôle GSO-T13/T15, non-contact GSO-T12/T23", "D"),
-    "187": ("l11-acceptance-guards + docs/ACCEPTANCE.md §4 (gate de release conditionné à la CI bloquante — job conformance) ; observation différée à la CI distante", "D"),
+    "187": ("l11-acceptance-guards + docs/ACCEPTANCE.md §4 (gate de release conditionne a la CI bloquante) ; blocage DEMONTRE a distance (run 34513250088 : etape rouge -> porte conformance sautee)", "D"),
     "188": ("conformité du dépôt établie sur fixtures (L9 + matrice) ; conformité opérationnelle par site réel différée (migration autorisée séparément)", "N"),
     "189": ("l11-acceptance-guards (21 cibles make documentees = 21 reelles ; exemples non executables signales)", "D"),
     "190": ("08-preflight-construction.md §5 (204 cartographiees) + docs/COMPLIANCE-MATRIX.md (make matrix-check)", "D"),
     "191": ("audit-grav-sites-ops/ n'a produit aucun commit ; chaque lot L0-L11 autorise separement avant modification", "D"),
-    "192": ("l11-acceptance-guards (main ahead de origin/main jamais pousse ; aucune branche ni tag pousse ; aucune automatisation push/tag/release)", "N"),
+    "192": ("push de main = d69a05a autorise explicitement (rapport L11 rev.3 + rapport correctif) ; l11-acceptance-guards verifie l'avance rapide sans reecriture et l'absence d'automatisation push/tag/release ; l'autorisation HUMAINE est consignee au rapport, non prouvable par un test seul", "D"),
     "202": ("contrat v0.5.0 §23.10 — approbation humaine explicite du 2026-09-05 ; README + docs/GOVERNANCE.md", "D"),
 }
 
@@ -219,7 +219,9 @@ def render() -> str:
         if n in ENTRY:
             proof[n], status[n] = ENTRY[n]
         elif lot == "L11":
-            proof[n], status[n] = ("lot L11 — acceptation & release, non démarré", "N")
+            # tous les 13 GSO-REQ de L11 ont une entrée ENTRY explicite ;
+            # ce repli ne devrait jamais s'activer.
+            proof[n], status[n] = ("lot L11 — acceptation & release (voir ACCEPTANCE.md)", "N")
         else:
             proof[n], status[n] = (f"couvert par le lot {lot}", "S")
 
@@ -241,11 +243,13 @@ def render() -> str:
     w("  gouvernance / de procédure.")
     w("- **Partiel** — une partie testée, une autre **différée** à une exécution réelle")
     w("  autorisée (GSO-REQ-091, 078).")
-    w("- **Non encore démontré (L11)** — après la revue d'acceptation L11, il ne reste")
-    w("  que ce qui exige une action **externe ou humaine non accordée** : un `push`, une")
-    w("  CI distante verte, une migration réelle (GSO-REQ-158, 188, 192).\n")
+    w("- **Non encore démontré (L11)** — ce qui exige une action **externe non")
+    w("  encore réalisée** : un tag de release sur un SHA à CI globale verte,")
+    w("  une migration réelle.\n")
     w("Les preuves issues d'un **lot antérieur** ou du **rôle** `sepp67.grav_site` sont")
     w("**attribuées à leur véritable mécanisme**, pas à L10 ni à L11.\n")
+    w("La distribution ci-dessous est **recalculée mécaniquement** à chaque")
+    w("`make matrix` à partir du seul tableau `ENTRY` ; aucun ajustement manuel du total.\n")
     w("---\n")
     w("## Synthèse\n")
     w("| Statut | Nombre |")
@@ -254,12 +258,14 @@ def render() -> str:
         w(f"| {LABEL[k]} | {c.get(k, 0)} |")
     w(f"| **Total** | **{sum(c.values())}** |\n")
     adressed = c["T"] + c["S"] + c["D"] + c["P"]
+    n_list = ", ".join(f"GSO-REQ-{n}" for n in sorted(status) if status[n] == "N") or "aucune"
     w(f"**{adressed} / 204** exigences sont adressées par les lots L0–L11 (aucune en")
-    w(f"échec). Les **{c['N']}** restantes — **GSO-REQ-158, 188, 192** — sont **non")
-    w("démontrées** : elles exigent un `push`, une CI distante verte ou une migration")
-    w("réelle, autorisations **distinctes non accordées**. La **construction locale est")
-    w("acceptée** ; publication, release et migration restent **bloquées** — détail et")
-    w("conditions dans [`ACCEPTANCE.md`](ACCEPTANCE.md) (contrat §22, GSO-REQ-150).\n")
+    w(f"échec). Les **{c['N']}** restantes — **{n_list}** — sont **non démontrées** :")
+    w("elles exigent un **tag de release sur un SHA à CI globale verte** (GSO-REQ-158)")
+    w("et une **migration réelle** (GSO-REQ-188), autorisations **distinctes non")
+    w("accordées**. La **construction locale L0–L11 est acceptée** (`main` = `d69a05a`,")
+    w("poussé) ; release et migration restent **bloquées** — détail et conditions dans")
+    w("[`ACCEPTANCE.md`](ACCEPTANCE.md) (contrat §22, GSO-REQ-150).\n")
     w("## Matrice détaillée (204 exigences)\n")
     w("| # | Lot | Intitulé | Preuve principale | Statut |")
     w("|---|---|---|---|---|")

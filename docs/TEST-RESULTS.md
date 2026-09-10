@@ -9,16 +9,24 @@ GSO-REQ-147) : pour chaque test, la dernière exécution constatée, la commande
 le commit, l'environnement et le résultat. Il ne rapporte **aucune preuve
 inventée**.
 
-> **CI GitHub Actions — non observée.** `.github/workflows/ci.yml` est validé
-> **statiquement et localement** (`tests/l10-ci-blocking.sh`, `yamllint`,
-> `GSO-T01`). Le dépôt distant `sepp67/grav-sites-ops` existe mais ne contient
-> que le commit initial ; **aucun `push`** de `main` ni d'une branche de
-> construction n'a été effectué : la CI distante **n'a donc jamais été
-> exécutée** et son caractère bloquant **n'est pas observé en pratique**
-> (GSO-REQ-147). Sa
-> configuration est conçue pour être bloquante (job `conformance` dépendant de
-> tous les jobs, aucun `continue-on-error`) et non opérationnelle (aucun
-> inventaire de production, aucun vault, aucune clé — GSO-REQ-030/046/058/139).
+> **CI GitHub Actions — exécutée et comportement bloquant observé ; run
+> global pas encore vert.** `main` = `d69a05a` a été **poussé** vers
+> `sepp67/grav-sites-ops` le 2026-09-10 (autorisation humaine explicite,
+> `push` en avance rapide, aucune réécriture). La CI distante a tourné —
+> **run [`34513250088`](https://github.com/sepp67/grav-sites-ops/actions/runs/34513250088)** :
+> - jobs métier **verts** (`role`, `translate`, `drift`, `functional-contract`) ;
+> - job `static` **rouge** sur **une seule étape**, `L11 — gardes d'acceptation`,
+>   à cause d'un **défaut du garde-fou** `tests/l11-acceptance-guards.sh`
+>   (contrôle GSO-REQ-192 qui exigeait `main` non poussé) — corrigé depuis ;
+> - job `conformance` (porte) **non exécuté**, **correctement bloqué** par
+>   l'échec de `static` (0 s, sauté).
+>
+> **Le caractère bloquant de la CI est donc démontré en pratique**
+> (GSO-REQ-145 / 147 / 187) : un échec réel a empêché la porte de conformité
+> de passer. **Le run global n'est pas encore au vert** — il le sera au
+> prochain `push` du correctif ; ce document ne prétend pas le contraire
+> (voir §4). La CI reste non opérationnelle (aucun inventaire de production,
+> aucun vault, aucune clé — GSO-REQ-030/046/058/139).
 
 ---
 
@@ -130,34 +138,36 @@ rapport d'exécution du lot concerné.
 
 | Élément | Limitation | Suivi |
 |---|---|---|
-| CI GitHub Actions | **jamais exécutée à distance** (aucun `push`) — bloquant/non bloquant non observé en pratique | autorisation de **premier `push`** distincte ; le dépôt distant `sepp67/grav-sites-ops` existe (commit initial seul) |
+| CI GitHub Actions — run global | **run `34513250088` non vert** : une étape (`l11-acceptance-guards`, défaut du garde-fou GSO-REQ-192) a fait échouer `static` → porte `conformance` bloquée. **Aucun run global vert consigné à ce jour.** | correctif poussé → nouveau run attendu vert |
 | `GSO-REQ-070` / `161` (sauvegarde vault avant migration) | preuve **documentaire** — le contrat les déclare non vérifiables par test automatisé | rapport d'opérateur daté lors d'une **migration réelle** autorisée (GSO-REQ-188) |
 | `GSO-REQ-171` (verdict de migration par site) | aucun site réel migré → aucun verdict réel | migration réelle autorisée |
 | `GSO-REQ-091` (`--check`) | comportement prouvé avec la **doublure** de rôle ; `--check` contre le **vrai** rôle non exercé | acceptable — `--check` n'est proposé que comme vérification complémentaire (contrat §13.8) |
-| `GSO-REQ-158` (tag sur SHA CI-vert) | la CI complète verte sur le SHA final **exige la CI distante** — non exécutée localement | après `push` autorisé |
+| `GSO-REQ-158` (tag sur SHA CI-vert) | aucun tag ; le SHA **final de release** (postérieur à `d69a05a` : `LICENSE` + version + `CHANGELOG` daté) devra avoir un **run global CI au vert** | lot de préparation de release |
 | `GSO-REQ-188` (migration réelle) | conformité du dépôt établie sur fixtures ; **aucune preuve propre à un site réel** | migration réelle — autorisation opérationnelle distincte |
-| `GSO-REQ-192` (publication) | `main` **jamais poussé** (66 commits ahead de `origin/main`) | autorisation de premier `push` |
+| `GSO-REQ-192` (publication) | `main` = `d69a05a` **poussé** (2026-09-10, autorisation explicite, avance rapide, aucune réécriture) ; **l'autorisation humaine** est consignée dans le rapport d'exécution, pas prouvable par un test seul | tag + release = autorisation distincte |
 | Fichier `LICENSE` | absent — `README.md` : « licence non fixée » (résidu L0) | **décision humaine** avant toute release publique |
-| `docs/COMPLIANCE-MATRIX.md` | statut des 204 exigences au commit courant | 201/204 adressées (L0–L11) ; 3 bloquées (158/188/192) — voir `docs/ACCEPTANCE.md` |
+| `docs/COMPLIANCE-MATRIX.md` | statut des 204 exigences au commit courant | distribution recalculée mécaniquement par `make matrix` — voir `docs/ACCEPTANCE.md` |
 
 ---
 
-## 5. Acceptation L11 — revue et verdicts séparés
+## 5. Acceptation L11 + correctif post-publication — verdicts séparés
 
-Lot **L11** : revue d'acceptation locale (contrat §22, §19.8). **Aucune étape
-de publication, de tag, de release ou de migration n'a été franchie**
-(GSO-REQ-191).
+Lot **L11** : revue d'acceptation locale (contrat §22, §19.8), acceptée et
+intégrée à `main` = `d69a05a`. **Lot correctif** (post-`push`) : correction du
+garde-fou GSO-REQ-192 et réconciliation documentaire après la première
+exécution CI distante.
 
 | Domaine | Verdict | Fondé sur |
 |---|---|---|
-| **Construction locale** | **ACCEPTED** | 201/204 exigences adressées, 24/24 tests normatifs verts, `GSO-T15` OK, `make lint` 0 faute, `make matrix-check` OK |
-| **Publication** (`push` de `main`) | **BLOCKED** | `main` jamais poussé ; autorisation de premier `push` + observation CI distante requises |
-| **Release** (tag + release) | **BLOCKED** | CI distante verte sur le SHA final + `CHANGELOG` daté + `LICENSE` + n° de version + autorisation de release |
+| **Construction locale** | **ACCEPTED** | L0–L11 acceptés à `d69a05a` ; 24/24 tests normatifs verts, `GSO-T15` OK, `make lint` 0 faute, `make matrix-check` OK |
+| **Publication** (`push` de `main`) | **effectuée** — CI distante à ramener au vert | `main` = `d69a05a` poussé (autorisation explicite, avance rapide) ; run `34513250088` **non vert** (défaut de garde-fou, corrigé) ; comportement bloquant **observé** |
+| **Release** (tag + release) | **BLOCKED** | SHA **final de release** (postérieur, avec `LICENSE` + version + `CHANGELOG` daté) → **run CI global vert** (GSO-REQ-158) + autorisation de release distincte (GSO-REQ-192) |
 | **Migration réelle** | **BLOCKED** | autorisation opérationnelle distincte (GSO-REQ-188) ; `inventories/production/` + vault opérationnel hors dépôt |
 
 Détail exigence par exigence et conditions exactes : `docs/ACCEPTANCE.md`.
-Les 13 exigences L11 : **10 établies par revue documentaire contrôlée**
-(GSO-REQ-159, 183, 184, 185, 186, 187, 189, 190, 191, 202) ; **3 non
-démontrées** (GSO-REQ-158, 188, 192) — bloquées par un `push`, une CI distante
-ou une migration réelle non autorisés. Aucune n'est transformée
-artificiellement en preuve documentaire.
+Les 13 exigences L11 : le `push` autorisé et la première exécution CI font
+**évoluer** GSO-REQ-145 / 147 / 187 (preuve distante du blocage désormais
+disponible) et GSO-REQ-192 (mécanique du `push` en avance rapide vérifiée ;
+autorisation humaine consignée dans le rapport). **GSO-REQ-158** (tag sur SHA
+CI-vert) et **GSO-REQ-188** (migration réelle) restent **non démontrées**.
+Distribution recalculée mécaniquement — voir `docs/COMPLIANCE-MATRIX.md` §Synthèse.

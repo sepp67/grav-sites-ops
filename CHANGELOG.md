@@ -11,6 +11,44 @@ et le versionnement sémantique.
 
 ## [Non publié]
 
+### Corrigé — lot correctif post-publication (premier `push` de `main`)
+
+`main` = `d69a05a` a été **poussé** vers `sepp67/grav-sites-ops` le
+2026-09-10 (autorisation humaine explicite ; `push` en avance rapide, aucune
+réécriture). La CI GitHub Actions a tourné pour la première fois — run
+[`34513250088`](https://github.com/sepp67/grav-sites-ops/actions/runs/34513250088) :
+jobs métier verts, **une** étape rouge (`l11-acceptance-guards`), porte
+`conformance` **correctement bloquée**.
+
+- **`tests/l11-acceptance-guards.sh`** — le contrôle GSO-REQ-192 exigeait
+  `main` **strictement en avance** sur `origin/main` (« jamais poussé »), ce
+  qui est une **mauvaise interprétation** : GSO-REQ-192 exige un `push`
+  **autorisé et vérifié**, pas absent. Le contrôle raisonne désormais sur
+  `HEAD` (checkout détaché de GitHub Actions), vérifie une **relation en
+  avance rapide** (`origin/main` ancêtre de `HEAD`, aucune divergence,
+  `left = 0`) et l'**absence d'automatisation** `push` / `tag` / `release`.
+  L'autorisation **humaine** du `push` relève du rapport d'exécution, pas du
+  test.
+- **`tests/l10-ci-blocking.sh`** (GSO-REQ-147) — accepte désormais deux états
+  honnêtes : « CI distante non observée » **ou** « CI observée : run <id> » ;
+  **refuse** toute surqualification (« CI complète verte » / « CI conforme »)
+  tant qu'aucun run global vert n'est consigné.
+- **`docs/TEST-RESULTS.md`**, **`docs/ACCEPTANCE.md`**, **`README.md`** —
+  réconciliés avec la réalité : `push` effectué, CI **exécutée et
+  comportement bloquant observé**, run global **pas encore vert**.
+- **`docs/COMPLIANCE-MATRIX.md`** (régénérée, distribution **recalculée
+  mécaniquement**) : GSO-REQ-145 / 147 / 187 citent la **preuve distante du
+  blocage** (run `34513250088`) ; **GSO-REQ-192** passe de *non démontré* à
+  *établi / documenté* (mécanique testée ; autorisation humaine consignée au
+  rapport). Nouvelle synthèse : **138 T / 15 S / 47 D / 2 P / 2 N** — les 2
+  *non démontrées* restantes sont **GSO-REQ-158** (tag sur SHA à CI verte) et
+  **GSO-REQ-188** (migration réelle).
+
+**Non fait / non autorisé :** aucun `git push` de ce correctif (autorisation
+distincte) ; aucun tag, aucune release ; aucune mise à niveau des actions
+GitHub (`checkout@v4`, `setup-python@v5`) — commit séparé si nécessaire après
+retour au vert. Aucun nouvel identifiant `GSO-T`.
+
 ### Ajouté — lot L11 (acceptation : revue §22, verdicts séparés)
 
 - `docs/ACCEPTANCE.md` : revue des critères d'acceptation du contrat (§22),

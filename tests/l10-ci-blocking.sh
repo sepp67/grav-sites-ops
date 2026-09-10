@@ -109,12 +109,26 @@ else
 fi
 
 # --------------------------------------------------------------------------
-# GSO-REQ-147 — l'absence d'exécution CI observée est indiquée comme telle
+# GSO-REQ-147 — l'état d'observation de la CI distante est indiqué comme tel
+# (aucune preuve inventée) : soit « non observée », soit « observée : run … »
+# avec un résultat honnête. Interdit d'écrire « CI complète verte » / « CI
+# conforme » tant que le rapport n'a pas consigné un run global vert.
 # --------------------------------------------------------------------------
-if [ -f docs/TEST-RESULTS.md ] && grep -qiE 'CI (distante|GitHub).*(non (exécut|publi|observ)|pas (exécut|observ)|jamais poussé|sans push)' docs/TEST-RESULTS.md; then
-  pass "GSO-REQ-147 : docs/TEST-RESULTS.md indique que la CI distante n'a pas été observée (aucun push)"
+_tr=docs/TEST-RESULTS.md
+_ci_not_observed='CI (distante|GitHub)[^.]*(non (exécut|publi|observ)|pas (exécut|observ)|jamais poussé|sans push)'
+_ci_observed_claim='CI (distante|GitHub).*(exécut|observ|tourné)'
+_ci_run_ref='run[^0-9]{0,4}[0-9]{8,}'
+_ci_overclaim='CI (complète|entièrement|distante) verte|CI conforme'
+if [ ! -f "$_tr" ]; then
+  fail "GSO-REQ-147 : $_tr absent"
+elif grep -qiE "$_ci_overclaim" "$_tr"; then
+  fail "GSO-REQ-147 : $_tr surqualifie la CI (« complète verte » / « conforme ») — interdit sans run global vert consigné"
+elif grep -qiE "$_ci_not_observed" "$_tr"; then
+  pass "GSO-REQ-147 : $_tr indique que la CI distante n'a pas été observée (état honnête)"
+elif grep -qiE "$_ci_observed_claim" "$_tr" && grep -qiE "$_ci_run_ref" "$_tr"; then
+  pass "GSO-REQ-147 : $_tr consigne une exécution CI distante réellement observée (run référencé), sans preuve inventée"
 else
-  fail "GSO-REQ-147 : docs/TEST-RESULTS.md ne signale pas l'absence d'exécution CI observée"
+  fail "GSO-REQ-147 : $_tr ne décrit pas l'état d'observation de la CI distante (« non observée », ou « observée : run <id> »)"
 fi
 
 # --------------------------------------------------------------------------

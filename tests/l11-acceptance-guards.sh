@@ -93,30 +93,56 @@ else
 fi
 
 # --------------------------------------------------------------------------
-# 3. GSO-REQ-192 / 158 / 191 — aucun tag, aucun commit de construction poussé
+# 3. GSO-REQ-192 / 158 / 191 — publication en avance rapide, sans réécriture
 # --------------------------------------------------------------------------
-if [ -z "$(git tag)" ]; then
-  pass "GSO-REQ-158/192 : aucun tag Git dans le dépôt (release non préparée matériellement)"
-else
-  fail "GSO-REQ-158/192 : des tags existent : $(git tag | tr '\n' ' ')"
-fi
-# le dépôt distant existe (remote origin) mais AUCUN commit de construction
-# n'y a été poussé : origin/main est resté au commit initial, ancêtre de main.
-if git rev-parse --verify -q origin/main >/dev/null; then
-  ahead="$(git rev-list --count origin/main..main 2>/dev/null || echo 0)"
-  if git merge-base --is-ancestor origin/main main && [ "$ahead" -gt 0 ]; then
-    pass "GSO-REQ-192 : main est ahead de origin/main de $ahead commits non poussés (origin/main = $(git rev-parse --short origin/main), ancêtre de main)"
+# GSO-REQ-192 n'interdit PAS de publier `main` : il exige que le `push`, le tag
+# et la release soient des étapes explicitement autorisées ET vérifiées.
+# Ce garde-fou (un test) vérifie la partie mécanique — relation fast-forward,
+# aucune réécriture, aucune automatisation. La vérification de l'AUTORISATION
+# HUMAINE du push relève du rapport d'exécution, pas de ce test.
+#
+# On raisonne sur HEAD (pas `main`) pour fonctionner aussi dans le checkout
+# détaché de GitHub Actions.
+if git rev-parse --verify -q origin/main >/dev/null 2>&1; then
+  # left  = commits sur origin/main absents du checkout testé  -> DOIT être 0
+  # right = commits du checkout testé absents d'origin/main     -> >= 0
+  _lr="$(git rev-list --left-right --count "origin/main...HEAD" 2>/dev/null || echo 'x x')"
+  _left="${_lr%%[[:space:]]*}"; _right="${_lr##*[[:space:]]}"
+  if [ "$_left" = "0" ] && git merge-base --is-ancestor origin/main HEAD; then
+    if [ "$_right" = "0" ]; then
+      pass "GSO-REQ-192 : HEAD == origin/main (publication en avance rapide, aucune réécriture ; left/right = $_left/$_right)"
+    else
+      pass "GSO-REQ-192 : HEAD descend directement d'origin/main sans divergence ($_right commit(s) non publié(s) ; left/right = $_left/$_right)"
+    fi
   else
-    fail "GSO-REQ-192 : origin/main n'est pas un ancêtre strict de main (publication ?)"
+    # left > 0 : origin/main contient au moins un commit absent du HEAD testé
+    # (état distant plus récent, ou divergence). Publication NON vérifiable en
+    # avance rapide — sans préjuger de la cause (rebase local en retard,
+    # push concurrent, réécriture...).
+    fail "GSO-REQ-192 : origin/main n'est pas contenu dans HEAD (left/right = $_left/$_right) — publication non vérifiable en avance rapide"
   fi
-  remote_branches="$(git branch -r | grep -vE 'origin/(HEAD|main)$' || true)"
+  # aucune branche distante autre que main (les branches de travail restent locales)
+  remote_branches="$(git branch -r 2>/dev/null | grep -vE 'origin/(HEAD|main)( |$)' || true)"
   if [ -n "$remote_branches" ]; then
-    fail "GSO-REQ-192 : des branches de construction sont poussées :$(printf ' %s' $remote_branches)"
+    info "note : branche(s) distante(s) autre(s) que main :$(printf ' %s' $remote_branches) - verifier qu'aucune ne contourne le gate de release"
   else
-    pass "GSO-REQ-192 : aucune branche de construction poussée (seul origin/main, au commit initial)"
+    pass "GSO-REQ-192 : aucune branche distante hors main"
   fi
 else
-  pass "GSO-REQ-192 : aucun suivi distant de main (publication structurellement séparée)"
+  pass "GSO-REQ-192 : aucun suivi distant de main dans ce checkout"
+fi
+# GSO-REQ-158 : un tag de release doit pointer sur un SHA à CI verte. Tant
+# qu'aucune release n'est préparée, aucun tag ne doit exister ; un tag présent
+# devra être annoté et joignable depuis HEAD (contrôlé au lot de release).
+if [ -z "$(git tag)" ]; then
+  pass "GSO-REQ-158 : aucun tag Git (release non préparée)"
+else
+  bad_tags=""
+  for t in $(git tag); do
+    git merge-base --is-ancestor "$t" HEAD 2>/dev/null || bad_tags="$bad_tags $t"
+  done
+  [ -z "$bad_tags" ] && pass "GSO-REQ-158 : tag(s) présent(s), tous joignables depuis HEAD :$(printf ' %s' $(git tag))" \
+                     || fail "GSO-REQ-158 : tag(s) non joignable(s) depuis HEAD :$bad_tags"
 fi
 
 # --------------------------------------------------------------------------

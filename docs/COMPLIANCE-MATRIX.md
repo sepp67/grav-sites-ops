@@ -16,12 +16,15 @@ Cinq niveaux, **distincts** :
   gouvernance / de procédure.
 - **Partiel** — une partie testée, une autre **différée** à une exécution réelle
   autorisée (GSO-REQ-091, 078).
-- **Non encore démontré (L11)** — après la revue d'acceptation L11, il ne reste
-  que ce qui exige une action **externe ou humaine non accordée** : un `push`, une
-  CI distante verte, une migration réelle (GSO-REQ-158, 188, 192).
+- **Non encore démontré (L11)** — ce qui exige une action **externe non
+  encore réalisée** : un tag de release sur un SHA à CI globale verte,
+  une migration réelle.
 
 Les preuves issues d'un **lot antérieur** ou du **rôle** `sepp67.grav_site` sont
 **attribuées à leur véritable mécanisme**, pas à L10 ni à L11.
+
+La distribution ci-dessous est **recalculée mécaniquement** à chaque
+`make matrix` à partir du seul tableau `ENTRY` ; aucun ajustement manuel du total.
 
 ---
 
@@ -31,17 +34,18 @@ Les preuves issues d'un **lot antérieur** ou du **rôle** `sepp67.grav_site` so
 |---|---|
 | Satisfait et testé | 138 |
 | Satisfait | 15 |
-| Établi / documenté | 46 |
+| Établi / documenté | 47 |
 | Partiel | 2 |
-| Non encore démontré (L11) | 3 |
+| Non encore démontré (L11) | 2 |
 | **Total** | **204** |
 
-**201 / 204** exigences sont adressées par les lots L0–L11 (aucune en
-échec). Les **3** restantes — **GSO-REQ-158, 188, 192** — sont **non
-démontrées** : elles exigent un `push`, une CI distante verte ou une migration
-réelle, autorisations **distinctes non accordées**. La **construction locale est
-acceptée** ; publication, release et migration restent **bloquées** — détail et
-conditions dans [`ACCEPTANCE.md`](ACCEPTANCE.md) (contrat §22, GSO-REQ-150).
+**202 / 204** exigences sont adressées par les lots L0–L11 (aucune en
+échec). Les **2** restantes — **GSO-REQ-158, GSO-REQ-188** — sont **non démontrées** :
+elles exigent un **tag de release sur un SHA à CI globale verte** (GSO-REQ-158)
+et une **migration réelle** (GSO-REQ-188), autorisations **distinctes non
+accordées**. La **construction locale L0–L11 est acceptée** (`main` = `d69a05a`,
+poussé) ; release et migration restent **bloquées** — détail et conditions dans
+[`ACCEPTANCE.md`](ACCEPTANCE.md) (contrat §22, GSO-REQ-150).
 
 ## Matrice détaillée (204 exigences)
 
@@ -191,9 +195,9 @@ conditions dans [`ACCEPTANCE.md`](ACCEPTANCE.md) (contrat §22, GSO-REQ-150).
 | GSO-REQ-142 | L10 | Isolation des projets | l10-multisite-isolation + GSO-T16 + GSO-T14 | Satisfait et testé |
 | GSO-REQ-143 | L10 | Persistance testée | GSO-T17/T18 (pages/accounts/data/images séparés) | Satisfait et testé |
 | GSO-REQ-144 | L10 | Contrôle non mutant prouvé | GSO-T19/T20 + l7-persistence-guard (aucun fichier/conteneur modifié) | Satisfait et testé |
-| GSO-REQ-145 | L10 | Jobs bloquants | l10-ci-blocking (job conformance ; aucun continue-on-error) | Satisfait et testé |
+| GSO-REQ-145 | L10 | Jobs bloquants | l10-ci-blocking (job conformance ; aucun continue-on-error) + run distant 34513250088 (une etape rouge a bloque la porte conformance) | Satisfait et testé |
 | GSO-REQ-146 | L10 | Outils reproductibles | l10-ci-blocking (python 3.12, ansible-core >=2.17,<2.19) | Satisfait et testé |
-| GSO-REQ-147 | L10 | Pas de preuve inventée | docs/TEST-RESULTS.md + l10-ci-blocking (CI distante non observée) | Satisfait et testé |
+| GSO-REQ-147 | L10 | Pas de preuve inventée | docs/TEST-RESULTS.md + l10-ci-blocking : CI distante DESORMAIS observee (run 34513250088), etat consigne sans surqualification (run global pas encore vert) | Satisfait et testé |
 | GSO-REQ-148 | L10 | Retrait simulé | GSO-T21 + l10-cleanup (retrait simulé) | Satisfait et testé |
 | GSO-REQ-149 | L10 | Ressources éphémères | l10-cleanup (zéro résidu) + GSO-T15 §10 | Satisfait et testé |
 | GSO-REQ-150 | L10 | Matrice complète | docs/COMPLIANCE-MATRIX.md + docs/TEST-RESULTS.md | Satisfait |
@@ -204,7 +208,7 @@ conditions dans [`ACCEPTANCE.md`](ACCEPTANCE.md) (contrat §22, GSO-REQ-150).
 | GSO-REQ-155 | L0 | Runtime transitif | docs/VERSIONING.md | Établi / documenté |
 | GSO-REQ-156 | L0 | Historique attribuable | docs/VERSIONING.md | Établi / documenté |
 | GSO-REQ-157 | L0 | Changelog borné | CHANGELOG.md (versions du dépôt) + REGISTRY-SCHEMA.md (versions du parc) | Satisfait |
-| GSO-REQ-158 | L11 | Tag sur SHA validé | docs/ACCEPTANCE.md §3 — commande de tag et SHA candidat préparés ; CI distante verte requise (non exécutée) | Non encore démontré (L11) |
+| GSO-REQ-158 | L11 | Tag sur SHA validé | aucun tag ; CI distante desormais executee (run 34513250088) mais PAS globalement verte ; le SHA final de release (avec LICENSE+version+CHANGELOG) devra avoir un run global vert | Non encore démontré (L11) |
 | GSO-REQ-159 | L11 | Release et exploitation séparées | l11-acceptance-guards (ci.yml sans déclencheur release/tag ; aucune étape de déploiement en CI) | Établi / documenté |
 | GSO-REQ-160 | L9 | Source préservée | MIGRATION.md §0/§12 — non-destruction ; exécution réelle à démontrer | Établi / documenté |
 | GSO-REQ-161 | L9 | Sauvegarde vérifiée | MIGRATION.md §3 — preuve documentaire (non automatisable par contrat) | Établi / documenté |
@@ -233,12 +237,12 @@ conditions dans [`ACCEPTANCE.md`](ACCEPTANCE.md) (contrat §22, GSO-REQ-150).
 | GSO-REQ-184 | L11 | Audit avant construction | audit-grav-sites-ops/01..08 antérieurs au premier commit de construction ; docs/GOVERNANCE.md | Établi / documenté |
 | GSO-REQ-185 | L11 | Squelette non opérationnel par défaut | l11-acceptance-guards (premier commit 4a4eab0 = README.md seul, aucune capacité de déploiement) | Établi / documenté |
 | GSO-REQ-186 | L11 | Zéro test critique manquant | revue de matrice — aucun TEST GAP : sélection GSO-T08..T12, secrets GSO-T07/T14/T24, persistance GSO-T17/T18, rôle GSO-T13/T15, non-contact GSO-T12/T23 | Établi / documenté |
-| GSO-REQ-187 | L11 | Échec d'un garde-fou bloquant | l11-acceptance-guards + docs/ACCEPTANCE.md §4 (gate de release conditionné à la CI bloquante — job conformance) ; observation différée à la CI distante | Établi / documenté |
+| GSO-REQ-187 | L11 | Échec d'un garde-fou bloquant | l11-acceptance-guards + docs/ACCEPTANCE.md §4 (gate de release conditionne a la CI bloquante) ; blocage DEMONTRE a distance (run 34513250088 : etape rouge -> porte conformance sautee) | Établi / documenté |
 | GSO-REQ-188 | L11 | Migration distincte de la construction | conformité du dépôt établie sur fixtures (L9 + matrice) ; conformité opérationnelle par site réel différée (migration autorisée séparément) | Non encore démontré (L11) |
 | GSO-REQ-189 | L11 | Documentation exécutable | l11-acceptance-guards (21 cibles make documentees = 21 reelles ; exemples non executables signales) | Établi / documenté |
 | GSO-REQ-190 | L11 | Matrice exhaustive | 08-preflight-construction.md §5 (204 cartographiees) + docs/COMPLIANCE-MATRIX.md (make matrix-check) | Établi / documenté |
 | GSO-REQ-191 | L11 | Audit non exécutoire | audit-grav-sites-ops/ n'a produit aucun commit ; chaque lot L0-L11 autorise separement avant modification | Établi / documenté |
-| GSO-REQ-192 | L11 | Publication séparée | l11-acceptance-guards (main ahead de origin/main jamais pousse ; aucune branche ni tag pousse ; aucune automatisation push/tag/release) | Non encore démontré (L11) |
+| GSO-REQ-192 | L11 | Publication séparée | push de main = d69a05a autorise explicitement (rapport L11 rev.3 + rapport correctif) ; l11-acceptance-guards verifie l'avance rapide sans reecriture et l'absence d'automatisation push/tag/release ; l'autorisation HUMAINE est consignee au rapport, non prouvable par un test seul | Établi / documenté |
 | GSO-REQ-193 | L0 | Différé non implicite | docs/GOVERNANCE.md | Établi / documenté |
 | GSO-REQ-194 | L0 | Décisions protégées | docs/GOVERNANCE.md | Établi / documenté |
 | GSO-REQ-195 | L0 | Amendement avant code | docs/GOVERNANCE.md | Établi / documenté |

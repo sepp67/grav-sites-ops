@@ -2,21 +2,25 @@
 
 Résumé normatif : contrat architectural `v0.5.0`, **section 22** (critères
 d'acceptation) et **§19.8** (préparation d'une release). En cas de divergence,
-le contrat fait foi. Livré par le **lot L11** (acceptation).
+le contrat fait foi. Livré par le **lot L11** (acceptation), tenu à jour par le
+**lot correctif post-publication**.
 
 Ce document **consomme** la matrice des 204 exigences
 ([`COMPLIANCE-MATRIX.md`](COMPLIANCE-MATRIX.md)) et les résultats observés
 ([`TEST-RESULTS.md`](TEST-RESULTS.md)) pour statuer, **séparément**, sur :
 
-1. l'**acceptation de la construction locale** ;
-2. la **publication** (`push` de `main` vers le dépôt distant existant) ;
-3. la **release** (tag + release GitHub) ;
-4. la **migration réelle** depuis l'ancien profil.
+1. l'**acceptation de la construction locale** — `ACCEPTED` (`main` = `d69a05a`) ;
+2. la **publication** (`push` de `main`) — **effectuée** le 2026-09-10
+   (autorisation humaine explicite) ; CI distante à ramener au vert ;
+3. la **release** (tag + release GitHub) — **BLOCKED** ;
+4. la **migration réelle** depuis l'ancien profil — **BLOCKED**.
 
-> **Rien n'est franchi ici.** L11 est une revue d'acceptation locale
-> (GSO-REQ-191 : un audit / préflight ne modifie aucun dépôt sans autorisation
-> séparée). Les commandes de publication, de tag et de release sont
-> **préparées** mais **non exécutées** (GSO-REQ-192).
+> **État au 2026-09-10.** `main` = `d69a05a` a été **poussé** vers
+> `sepp67/grav-sites-ops` (avance rapide, aucune réécriture). La CI distante a
+> tourné une première fois — run `34513250088` : **jobs métier verts**, **une
+> étape rouge** (`l11-acceptance-guards`, défaut de garde-fou corrigé depuis),
+> **porte `conformance` correctement bloquée**. Le **tag** et la **release**
+> restent des étapes **non franchies** (GSO-REQ-192) ; aucun tag n'existe.
 
 ---
 
@@ -59,19 +63,19 @@ Relevé textuel du contrat `v0.5.0` §22-§23 et §19.8. Classées selon ce qu'e
 
 | Exigence | Texte (contrat) | Constat L11 | Statut |
 |---|---|---|---|
-| **GSO-REQ-187** | *Échec d'un garde-fou bloquant.* Toute non-conformité de sécurité DOIT bloquer une release. | Le mécanisme de blocage **existe** : CI en jobs bloquants (job `conformance` `needs:` tous les jobs, aucun `continue-on-error` — `l10-ci-blocking`) ; le présent gate de release (§4) est **conditionné** à la matrice sans écart critique et au SHA CI-vert. Une non-conformité de sécurité rend un job rouge → `conformance` rouge → SHA non éligible. **Non observé en pratique** tant que la CI n'a pas tourné à distance. | **Établi / documenté** *(mécanisme)* — observation différée à la première CI distante |
+| **GSO-REQ-187** | *Échec d'un garde-fou bloquant.* Toute non-conformité de sécurité DOIT bloquer une release. | Le mécanisme de blocage **existe et est désormais démontré à distance** : run `34513250088` — une étape rouge (`l11-acceptance-guards`) a fait échouer le job `static` → la **porte `conformance` n'a pas pu passer** (sautée, 0 s). Le gate de release (§4) est conditionné à un run global vert. | **Établi / documenté** *(mécanisme + preuve distante du blocage)* |
 
-### 2.3 Push / CI distante — constaté « non exécuté », blocage maintenu
+### 2.3 Push / CI distante — `push` autorisé effectué, CI observée
 
-| Exigence | Texte (contrat) | Constat L11 | Statut |
+| Exigence | Texte (contrat) | Constat | Statut |
 |---|---|---|---|
-| **GSO-REQ-192** | *Publication séparée.* Le push de `main`, le tag et la release DOIVENT rester des étapes explicitement autorisées et vérifiées. | Un `remote origin` (`git@github.com:sepp67/grav-sites-ops.git`) existe et ne contient que le **commit initial** `4a4eab0` (`README.md`, 1 ligne) ; `main` local est **66 commits ahead** de `origin/main`, **jamais poussé** ; aucune branche de construction poussée ; aucun tag ; aucun script / cible / workflow n'exécute `git push`, `git tag` ou `gh release`. La séparation est **structurelle**. Le franchissement exige l'autorisation de **premier `push`** puis de **release** — **distinctes**. | **Non encore démontré** — bloqué : `push` de `main` non autorisé |
+| **GSO-REQ-192** | *Publication séparée.* Le push de `main`, le tag et la release DOIVENT rester des étapes explicitement autorisées et vérifiées. | `main` = `d69a05a` **poussé le 2026-09-10** sur **autorisation humaine explicite** (consignée au rapport d'exécution) ; `push` en **avance rapide**, `origin/main` == `main`, **aucune réécriture** (`l11-acceptance-guards` : `left/right = 0/0`, `origin/main` ancêtre de `HEAD`) ; **aucun tag**, aucune branche de travail poussée ; aucun script / cible / workflow n'automatise `git push` / `git tag` / `gh release`. **Le tag et la release restent des étapes distinctes non franchies.** | **Établi / documenté** — la mécanique (avance rapide, pas d'automatisation) est **testée** ; l'**autorisation humaine** du `push` est consignée au rapport, non prouvable par un test seul |
 
-### 2.4 Tag / release — commande et SHA préparés, rien créé
+### 2.4 Tag / release — rien créé, SHA final de release à venir
 
-| Exigence | Texte (contrat) | Constat L11 | Statut |
+| Exigence | Texte (contrat) | Constat | Statut |
 |---|---|---|---|
-| **GSO-REQ-158** | *Tag sur SHA validé.* Un tag de release DOIT pointer exactement sur un commit dont la CI complète est verte. | SHA candidat **préparé** (§3) ; la commande de tag est **rédigée mais non exécutée**. La condition « CI complète verte sur ce SHA » **ne peut pas être satisfaite localement** : elle exige l'exécution distante de la CI après `push` (non autorisé). | **Non encore démontré** — bloqué : SHA non encore validé par une CI distante |
+| **GSO-REQ-158** | *Tag sur SHA validé.* Un tag de release DOIT pointer exactement sur un commit dont la CI complète est verte. | **Aucun tag.** La CI distante a tourné (run `34513250088`) mais **n'est pas globalement verte**. Le SHA **de construction** accepté est `d69a05a` ; le SHA **final de release** sera **postérieur** (ajout de `LICENSE` + numéro de version + `CHANGELOG` daté → nouveau commit), et c'est **ce** SHA qui devra avoir un **run global CI vert** avant le tag. | **Non encore démontré** — bloqué : pas de SHA de release à CI verte |
 
 ### 2.5 Migration réelle — non exécutée, autorisation opérationnelle distincte
 
@@ -89,27 +93,26 @@ implicite). Reste à trancher par une décision humaine avant publication.
 
 ---
 
-## 3. Préparation documentaire d'une release (contrat §19.8) — NON EXÉCUTÉE
+## 3. Préparation d'une release (contrat §19.8)
 
-**SHA candidat :** `HEAD` de `main` après intégration de L11 (à consigner dans
-le rapport d'exécution L11 — noté ici `<SHA_L11>`).
+**SHA de construction accepté :** `main` = `d69a05a` (poussé). **Ce n'est pas
+le SHA de release** : les étapes 4 et 8 ci-dessous produiront un **nouveau
+commit** (`LICENSE` + version + `CHANGELOG` daté), noté `<SHA_release>`.
 
-Séquence §19.8, **aucune étape exécutée** :
-
-| # | Étape §19.8 | État | Commande préparée (non exécutée) |
+| # | Étape §19.8 | État | Commande (à exécuter au moment voulu, sous autorisation) |
 |---|---|---|---|
-| 1 | figer le candidat | fait localement | `<SHA_L11>` = `git rev-parse main` |
+| 1 | figer le candidat de construction | **fait** | `d69a05a` = `git rev-parse main` |
 | 2 | exécuter la matrice `GSO-T01`–`GSO-T24` | **fait** (§TEST-RESULTS) | `make test` |
 | 3 | vérifier les exigences `GSO-REQ-*` | **fait** (matrice 204/204) | `make matrix-check` |
-| 4 | dater le changelog | à faire au moment de la release | (édition manuelle de `CHANGELOG.md`) |
-| 5 | faire valider la CI sur le SHA final | **IMPOSSIBLE localement** — exige la CI distante | *(après `push`, autorisation distincte)* |
-| 6 | intégrer linéairement dans `main` | fait (fast-forward, 0 merge) | `git merge --ff-only construction/lot-11` |
-| 7 | revalider `main` | **fait** depuis `main` | `make clean && make install-role && make test && make matrix-check` |
-| 8 | créer et pousser le tag annoté | **NON EXÉCUTÉ** — autorisation de release distincte | `git tag -a vX.Y.Z <SHA_L11> -m "…" && git push origin vX.Y.Z` |
+| 4 | choisir la licence + le n° de version + dater le `CHANGELOG` → **`<SHA_release>`** | **NON FAIT** — décisions humaines | (édition manuelle + commit) |
+| 5 | faire valider la **CI distante sur `<SHA_release>`** → **run global vert** | **NON FAIT** — un premier run a eu lieu sur `d69a05a` (non vert) | *(après `push` de `<SHA_release>`)* |
+| 6 | intégrer linéairement dans `main` | fait pour `d69a05a` ; à refaire pour `<SHA_release>` | `git merge --ff-only …` |
+| 7 | revalider `main` | **fait** pour `d69a05a` | `make clean && make install-role && make test && make matrix-check` |
+| 8 | créer et pousser le **tag annoté** sur `<SHA_release>` | **NON EXÉCUTÉ** — autorisation de release distincte | `git tag -a vX.Y.Z <SHA_release> -m "…" && git push origin vX.Y.Z` |
 | 9 | publier la release | **NON EXÉCUTÉ** — autorisation de release distincte | `gh release create vX.Y.Z …` |
 
-**Numéro de version :** non fixé. La première version stable serait `v0.1.0`
-ou `v1.0.0` selon une décision humaine ; ce document ne la choisit pas.
+**Numéro de version :** non fixé. `v0.1.0` ou `v1.0.0` selon une décision
+humaine ; ce document ne la choisit pas.
 
 ---
 
@@ -117,14 +120,14 @@ ou `v1.0.0` selon une décision humaine ; ce document ne la choisit pas.
 
 | Domaine | Verdict | Conditions restantes (humaines / externes) |
 |---|---|---|
-| **Construction locale** | **`ACCEPTED`** | aucune — **201 / 204** exigences adressées (191 par L0-L10 + **10** revues d'acceptation L11), les **3** restantes (GSO-REQ-158, 188, 192) légitimement bloquées ci-dessous ; 24/24 tests normatifs verts, `GSO-T15` vert sans résidu, `make lint` 0 faute, matrice à jour |
-| **Publication** (`push` de `main`) | **`BLOCKED`** | le dépôt distant `sepp67/grav-sites-ops` existe déjà (commit initial seul). Restent : 1) autorisation de **premier `push`** de `main` / d'une branche de construction ; 2) exécution et observation de la **CI distante** (GSO-REQ-147) |
-| **Release** (tag + release GitHub) | **`BLOCKED`** | 1) publication débloquée (ci-dessus) ; 2) **CI complète verte** sur le SHA final (GSO-REQ-158) ; 3) `CHANGELOG` daté ; 4) **fichier `LICENSE`** décidé et ajouté (décision humaine) ; 5) numéro de version décidé ; 6) autorisation de **release** distincte (GSO-REQ-192) |
+| **Construction locale** | **`ACCEPTED`** | aucune — **202 / 204** exigences adressées (distribution recalculée mécaniquement : 138 T / 15 S / 47 D / 2 P / 2 N) ; les **2** restantes (GSO-REQ-158, 188) légitimement bloquées ci-dessous ; 24/24 tests normatifs verts, `GSO-T15` vert sans résidu, `make lint` 0 faute, matrice à jour. `main` = `d69a05a`, poussé. |
+| **Publication** (`push` de `main`) | **effectuée** — CI à ramener au vert | `main` = `d69a05a` poussé le 2026-09-10 (autorisation humaine explicite, avance rapide, aucune réécriture). CI distante **observée** (run `34513250088`) : jobs métier verts, **run global non vert** (défaut de garde-fou corrigé). Reste : **pousser le correctif** → nouveau run **vert**. |
+| **Release** (tag + release GitHub) | **`BLOCKED`** | 1) **fichier `LICENSE`** décidé et ajouté (décision humaine) ; 2) **numéro de version** décidé ; 3) `CHANGELOG` daté → **`<SHA_release>`** (nouveau commit) ; 4) **run CI global vert sur `<SHA_release>`** (GSO-REQ-158) ; 5) autorisation de **tag + release** distincte (GSO-REQ-192) |
 | **Migration réelle** | **`BLOCKED`** | 1) autorisation opérationnelle **distincte** (GSO-REQ-188) ; 2) `inventories/production/` + vault opérationnel fournis hors dépôt ; 3) sauvegarde externe vérifiée du vault source ; 4) migration **site par site** avec preuves réelles ; 5) verdict daté par site (GSO-REQ-171) |
 
-**Conclusion.** La **construction locale de `grav-sites-ops` est acceptée**. La
-**publication**, la **release** et la **migration réelle** restent
-**légitimement bloquées** : chacune attend une décision humaine ou une
+**Conclusion.** La **construction locale de `grav-sites-ops` est acceptée**
+(`main` = `d69a05a`, poussé). La **CI distante doit être ramenée au vert** (un
+correctif de garde-fou est prêt). La **release** et la **migration réelle**
+restent **légitimement bloquées** : chacune attend une décision humaine ou une
 condition externe précise, énumérée ci-dessus. Aucune de ces conditions n'est
-transformée en preuve documentaire ; elles sont maintenues comme conditions
-ouvertes.
+transformée en preuve documentaire.

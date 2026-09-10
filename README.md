@@ -21,10 +21,12 @@ L10 (consolidation : CI bloquante, `docs/TEST-RESULTS.md`, matrice des 204
 exigences), L11 (acceptation : revue §22, verdicts séparés
 construction / publication / release / migration — `docs/ACCEPTANCE.md`).**
 
-**La construction locale est acceptée** (`docs/ACCEPTANCE.md`). La
-**publication** (`push`), la **release** (tag) et la **migration réelle**
-restent **bloquées** : chacune attend une décision humaine ou une condition
-externe précise.
+**La construction locale L0–L11 est acceptée** — `main` = `d69a05a`, **poussé**
+(`docs/ACCEPTANCE.md`). La **CI GitHub Actions** a tourné une première fois
+(run `34513250088`) : jobs métier verts, **run global pas encore vert** (défaut
+d'un garde-fou, corrigé — voir `CHANGELOG`). La **release** (tag) et la
+**migration réelle** restent **bloquées** : chacune attend une décision humaine
+ou une condition externe précise (`docs/ACCEPTANCE.md` §4).
 
 Le dépôt reste **non opérationnel par défaut** : ni inventaire de production,
 ni vault opérationnel. Les seules données versionnées sont l'inventaire, le
