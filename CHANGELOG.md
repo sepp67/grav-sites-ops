@@ -11,6 +11,60 @@ et le versionnement sémantique.
 
 ## [Non publié]
 
+## [1.0.0] - 2026-09-11
+
+### Ajouté — première release (licence, version, préparation du tag)
+
+Décisions humaines actées le 2026-09-11 : licence **AGPL-3.0-or-later**,
+première version **`1.0.0`**. Préparé sur la branche dédiée `release/1.0.0`,
+créée depuis `main` = `b2e97f2`. **Tag prévu `v1.0.0` — non créé** : le tag et
+la publication de la release GitHub restent des autorisations distinctes,
+postérieures à l'intégration de ce commit dans `main`, à son `push` et à un
+run CI global vert **sur ce SHA précis**.
+
+- **`LICENSE`** : texte **officiel et intégral, non modifié**, de la GNU
+  Affero General Public License v3 (source canonique
+  <https://www.gnu.org/licenses/agpl-3.0.txt>), `sha256:0d96a4ff68ad6d4b6f1f30f713b18d5184912ba8dd389f86aa7710db079abcb0`,
+  recoupé avec la copie SPDX `license-list-data` (identique mot pour mot, à
+  l'exception du schéma http/https dans 3 URL de la FSF).
+- **`README.md`** : `SPDX-License-Identifier: AGPL-3.0-or-later` et
+  `Copyright © 2026 Sébastien Clem` dans la section « Licence » (jamais dans
+  le corps du texte officiel de `LICENSE`) ; version du dépôt `1.0.0`
+  affichée en « Statut » ; état réconcilié avec `main` = `b2e97f2` et le run
+  CI global vert.
+- **`tests/l11-acceptance-guards.sh`** (§7, étendu — **aucun nouvel
+  identifiant `GSO-T`**) : garde-fou statique de licence — `LICENSE` comparé
+  par **hash SHA-256** au texte officiel (toute altération, même d'un octet,
+  est refusée) ; `SPDX-License-Identifier` et mention de copyright vérifiés
+  dans `README.md` ; cas négatif synthétique (texte altéré, jamais le fichier
+  réel) prouvant que le hash détecte bien une divergence.
+- **Run CI vert consigné** :
+  [`34591427344`](https://github.com/sepp67/grav-sites-ops/actions/runs/34591427344)
+  sur `main` = `b2e97f2` (2026-09-11) — **premier run global entièrement
+  vert** du dépôt, porte `conformance` incluse. Voir `docs/TEST-RESULTS.md`.
+- `docs/ACCEPTANCE.md`, `docs/TEST-RESULTS.md`, `docs/COMPLIANCE-MATRIX.md` :
+  réconciliés — licence et version décidées, run global vert consigné,
+  préparation documentaire du tag `v1.0.0`.
+
+**Le contrat architectural reste en version `v0.5.0`** : `1.0.0` est la
+version du **dépôt et de sa première release**, pas du contrat
+(`docs/VERSIONING.md`). **Non fait / non autorisé à ce stade :** intégration
+dans `main`, `push`, tag, release GitHub, mise à niveau des actions GitHub,
+migration réelle.
+
+### Corrigé — hygiène SIGPIPE généralisée (13 fichiers + GSO-T15)
+
+Suite du correctif GSO-REQ-192 : le même motif `producteur | grep -q` sous
+`set -o pipefail` (risque de faux négatif — ou, sur un garde-fou négatif, de
+**faux succès** — si l'élément recherché est réellement présent) fermé sur
+**13 fichiers `tests/*.sh`** puis, après classification explicite des 4
+occurrences restantes, sur **`tests/gso-t15-real-deploy.sh`** — validé par
+une exécution Docker réelle sans résidu. Détail complet : cause racine,
+méthode, cas négatifs, gate exécuté →
+`audit-grav-sites-ops/21-rapport-correctif-ci-192.md` §12–§17. Ces deux
+commits ont ensuite été intégrés (avance rapide) dans `main` et **poussés**
+(`b2e97f2`), produisant le premier run CI global vert du dépôt.
+
 ### Corrigé — lot correctif post-publication (premier `push` de `main`)
 
 `main` = `d69a05a` a été **poussé** vers `sepp67/grav-sites-ops` le

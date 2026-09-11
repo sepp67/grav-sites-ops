@@ -184,7 +184,7 @@ ENTRY: dict[str, tuple[str, str]] = {
     "149": ("l10-cleanup (zéro résidu) + GSO-T15 §10", "T"),
     "150": ("docs/COMPLIANCE-MATRIX.md + docs/TEST-RESULTS.md", "S"),
     # --- L11 (acceptation) : revues documentaires exécutées + 3 bloquées ---
-    "158": ("aucun tag ; CI distante desormais executee (run 34513250088) mais PAS globalement verte ; le SHA final de release (avec LICENSE+version+CHANGELOG) devra avoir un run global vert", "N"),
+    "158": ("aucun tag ; main = b2e97f2 a un run global vert (34591427344) mais ce n'est PAS le SHA de release ; le SHA final (LICENSE+version 1.0.0+CHANGELOG, prepare sur release/1.0.0, non integre) devra avoir son PROPRE run global vert", "N"),
     "159": ("l11-acceptance-guards (ci.yml sans déclencheur release/tag ; aucune étape de déploiement en CI)", "D"),
     "183": ("l11-acceptance-guards + GSO-T23 + REGISTRY-SCHEMA.md (aucune notion de publication dans le registre)", "D"),
     "184": ("audit-grav-sites-ops/01..08 antérieurs au premier commit de construction ; docs/GOVERNANCE.md", "D"),
@@ -195,7 +195,7 @@ ENTRY: dict[str, tuple[str, str]] = {
     "189": ("l11-acceptance-guards (21 cibles make documentees = 21 reelles ; exemples non executables signales)", "D"),
     "190": ("08-preflight-construction.md §5 (204 cartographiees) + docs/COMPLIANCE-MATRIX.md (make matrix-check)", "D"),
     "191": ("audit-grav-sites-ops/ n'a produit aucun commit ; chaque lot L0-L11 autorise separement avant modification", "D"),
-    "192": ("push de main = d69a05a autorise explicitement (rapport L11 rev.3 + rapport correctif) ; l11-acceptance-guards verifie l'avance rapide sans reecriture et l'absence d'automatisation push/tag/release ; l'autorisation HUMAINE est consignee au rapport, non prouvable par un test seul", "D"),
+    "192": ("push de main = b2e97f2 autorise explicitement (rapport L11 rev.3 + rapports correctifs) ; l11-acceptance-guards verifie l'avance rapide sans reecriture et l'absence d'automatisation push/tag/release ; l'autorisation HUMAINE est consignee aux rapports, non prouvable par un test seul", "D"),
     "202": ("contrat v0.5.0 §23.10 — approbation humaine explicite du 2026-09-05 ; README + docs/GOVERNANCE.md", "D"),
 }
 

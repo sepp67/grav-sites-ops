@@ -206,13 +206,39 @@ grep -qiE 'Migration réelle.*`BLOCKED`|`BLOCKED`.*[Mm]igration' "$ACC" \
   || fail "GSO-REQ-188 : docs/ACCEPTANCE.md ne bloque pas explicitement la migration réelle"
 
 # --------------------------------------------------------------------------
-# 7. Décision de licence — signalée comme bloquante, aucune licence implicite
+# 7. Licence et attribution — décision humaine actée, texte officiel intact
 # --------------------------------------------------------------------------
-if [ -f LICENSE ] || [ -f LICENSE.md ] || [ -f LICENSE.txt ]; then
-  # une licence a été ajoutée par décision humaine : cohérence à vérifier
-  grep -qiE 'licen(c|s)e' README.md \
-    && pass "licence : fichier LICENSE présent et README à jour" \
-    || fail "licence : LICENSE présent mais README ne le mentionne pas"
+# Hash de référence du texte OFFICIEL et NON MODIFIÉ de la GNU AGPLv3
+# (source canonique : https://www.gnu.org/licenses/agpl-3.0.txt, recoupé avec
+# la copie SPDX license-list-data le 2026-09-11 : identique mot pour mot, à
+# l'exception du schéma http/https dans 3 URL de la FSF elle-même). Un
+# `LICENSE` dont le contenu diverge de ce hash, même d'un octet, est refusé —
+# ce garde-fou existe précisément pour détecter une altération du texte
+# légal, pas pour la tolérer.
+AGPL30_SHA256="0d96a4ff68ad6d4b6f1f30f713b18d5184912ba8dd389f86aa7710db079abcb0"
+if [ -f LICENSE ]; then
+  _lic_sha="$(sha256sum LICENSE | awk '{print $1}')"
+  if [ "$_lic_sha" = "$AGPL30_SHA256" ]; then
+    pass "licence : LICENSE = texte officiel intégral et non modifié de la GNU AGPLv3 (sha256 vérifié)"
+  else
+    fail "licence : LICENSE présent mais son contenu diverge du texte officiel (sha256 $_lic_sha != $AGPL30_SHA256)"
+  fi
+  grep -qE 'SPDX-License-Identifier:[[:space:]]*AGPL-3\.0-or-later' README.md \
+    && pass "licence : SPDX-License-Identifier: AGPL-3.0-or-later présent dans README.md" \
+    || fail "licence : SPDX-License-Identifier AGPL-3.0-or-later absent de README.md"
+  grep -qE 'Copyright.*Sébastien Clem' README.md NOTICE 2>/dev/null \
+    && pass "licence : mention de copyright « Sébastien Clem » présente (README.md ou NOTICE)" \
+    || fail "licence : aucune mention de copyright trouvée"
+  # cas négatif synthétique (copie temporaire dans $_neg — même répertoire que
+  # le cas négatif GSO-REQ-188 ci-dessus, trap déjà posé — jamais un second
+  # `trap … EXIT` : bash ne les empile pas, un second trap écraserait le
+  # premier et ferait fuir $_neg) : un texte altéré (une seule ligne changée)
+  # DOIT produire un hash différent du hash de référence.
+  sed '1s/.*/GNU AFFERO GENERAL PUBLIC LICENSE (ALTERED)/' LICENSE > "$_neg/LICENSE.tampered"
+  _neg_lic_sha="$(sha256sum "$_neg/LICENSE.tampered" | awk '{print $1}')"
+  [ "$_neg_lic_sha" != "$AGPL30_SHA256" ] \
+    && pass "cas négatif : un texte de licence altéré synthétique est bien détecté (sha256 différent)" \
+    || fail "cas négatif : un texte de licence altéré synthétique n'est PAS détecté (faux négatif)"
 else
   if grep -qiE 'licen(c|s)e' README.md \
      && grep -qiE 'non encore fixée|non fixée|pas encore fixée|à fixer' README.md; then

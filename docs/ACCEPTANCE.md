@@ -9,18 +9,26 @@ Ce document **consomme** la matrice des 204 exigences
 ([`COMPLIANCE-MATRIX.md`](COMPLIANCE-MATRIX.md)) et les résultats observés
 ([`TEST-RESULTS.md`](TEST-RESULTS.md)) pour statuer, **séparément**, sur :
 
-1. l'**acceptation de la construction locale** — `ACCEPTED` (`main` = `d69a05a`) ;
-2. la **publication** (`push` de `main`) — **effectuée** le 2026-09-10
-   (autorisation humaine explicite) ; CI distante à ramener au vert ;
-3. la **release** (tag + release GitHub) — **BLOCKED** ;
+1. l'**acceptation de la construction locale** — `ACCEPTED` (`main` = `b2e97f2`) ;
+2. la **publication** (`push` de `main`) — **effectuée**, CI distante
+   **globale verte** ;
+3. la **release** (tag + release GitHub) — **BLOCKED** (préparation en cours) ;
 4. la **migration réelle** depuis l'ancien profil — **BLOCKED**.
 
-> **État au 2026-09-10.** `main` = `d69a05a` a été **poussé** vers
-> `sepp67/grav-sites-ops` (avance rapide, aucune réécriture). La CI distante a
-> tourné une première fois — run `34513250088` : **jobs métier verts**, **une
-> étape rouge** (`l11-acceptance-guards`, défaut de garde-fou corrigé depuis),
-> **porte `conformance` correctement bloquée**. Le **tag** et la **release**
-> restent des étapes **non franchies** (GSO-REQ-192) ; aucun tag n'existe.
+> **État au 2026-09-11.** `main` = `d69a05a` a été **poussé** le 2026-09-10
+> (autorisation humaine explicite, avance rapide). La CI distante a tourné
+> une première fois — run `34513250088` : **jobs métier verts**, **une étape
+> rouge** (`l11-acceptance-guards`, défaut du garde-fou GSO-REQ-192). Un lot
+> correctif (5 commits : correction du garde-fou + hygiène SIGPIPE généralisée
+> sur 13 fichiers puis sur `GSO-T15`, classifiée puis corrigée — détail :
+> `audit-grav-sites-ops/21-rapport-correctif-ci-192.md`) a été intégré en
+> avance rapide et **poussé** le 2026-09-11 : `main` = `b2e97f2`. Run
+> [`34591427344`](https://github.com/sepp67/grav-sites-ops/actions/runs/34591427344) :
+> **run global entièrement vert**, porte `conformance` incluse — le premier
+> de ce dépôt. Licence (**AGPL-3.0-or-later**) et version (**`1.0.0`**)
+> **décidées** le 2026-09-11 ; préparation locale de release en cours sur
+> `release/1.0.0`. Le **tag** `v1.0.0` et la **release GitHub** restent des
+> étapes **non franchies** (GSO-REQ-192) ; aucun tag n'existe.
 
 ---
 
@@ -75,7 +83,7 @@ Relevé textuel du contrat `v0.5.0` §22-§23 et §19.8. Classées selon ce qu'e
 
 | Exigence | Texte (contrat) | Constat | Statut |
 |---|---|---|---|
-| **GSO-REQ-158** | *Tag sur SHA validé.* Un tag de release DOIT pointer exactement sur un commit dont la CI complète est verte. | **Aucun tag.** La CI distante a tourné (run `34513250088`) mais **n'est pas globalement verte**. Le SHA **de construction** accepté est `d69a05a` ; le SHA **final de release** sera **postérieur** (ajout de `LICENSE` + numéro de version + `CHANGELOG` daté → nouveau commit), et c'est **ce** SHA qui devra avoir un **run global CI vert** avant le tag. | **Non encore démontré** — bloqué : pas de SHA de release à CI verte |
+| **GSO-REQ-158** | *Tag sur SHA validé.* Un tag de release DOIT pointer exactement sur un commit dont la CI complète est verte. | **Aucun tag.** `main` = `b2e97f2` a désormais un **run CI global vert** (`34591427344`), mais ce n'est **pas encore** le SHA de release : `LICENSE` + version `1.0.0` + `CHANGELOG` daté sont préparés sur `release/1.0.0` (nouveau commit, non intégré, non poussé). C'est **ce futur commit** (`<SHA_release>`), une fois intégré et poussé, qui devra avoir son **propre** run global CI vert avant tout tag. | **Non encore démontré** — bloqué : pas de SHA de release (avec licence + version) à CI verte |
 
 ### 2.5 Migration réelle — non exécutée, autorisation opérationnelle distincte
 
@@ -83,36 +91,44 @@ Relevé textuel du contrat `v0.5.0` §22-§23 et §19.8. Classées selon ce qu'e
 |---|---|---|---|
 | **GSO-REQ-188** | *Migration distincte de la construction.* La conformité du dépôt PEUT être établie avec des données fictives avant la migration ; la conformité opérationnelle exige ensuite des preuves propres aux sites réels. | **Première moitié satisfaite** : la conformité du dépôt est établie avec des fixtures synthétiques (L9 + toute la matrice). **Seconde moitié différée** : aucune preuve propre à un site réel n'existe (aucun site migré). Décision humaine propre (préflight §7.3, §2.3). | **Non encore démontré** — opérationnel, hors périmètre de construction |
 
-### 2.6 Décision de licence — décision humaine bloquante, aucune licence choisie
+### 2.6 Décision de licence — actée le 2026-09-11 : AGPL-3.0-or-later
 
-Non couverte par un `GSO-REQ-*` mais **résidu ouvert du lot L0** (`README.md` :
-« Licence — Non encore fixée » ; rapport L0 §6.2). `docs/ACCEPTANCE.md` la
-**signale** comme `DECISION REQUIRED` : une release publique nécessite un
-fichier `LICENSE`. **L11 ne choisit aucune licence** (ce serait un choix
-implicite). Reste à trancher par une décision humaine avant publication.
+Non couverte par un `GSO-REQ-*` mais **résidu du lot L0** (`README.md` :
+« Licence — Non encore fixée » ; rapport L0 §6.2), signalé `DECISION
+REQUIRED` par L11 (L11 lui-même n'avait choisi aucune licence — ce serait un
+choix implicite). **Décision humaine actée le 2026-09-11** : **GNU Affero
+General Public License v3 ou ultérieure (AGPL-3.0-or-later)**. `LICENSE`
+(texte officiel intégral, non modifié, `sha256:0d96a4ff68ad6d4b6f1f30f713b18d5184912ba8dd389f86aa7710db079abcb0`),
+`SPDX-License-Identifier` et copyright ajoutés sur la branche `release/1.0.0` ;
+garde-fou statique (hash + SPDX + copyright, `l11-acceptance-guards.sh` §7).
 
 ---
 
 ## 3. Préparation d'une release (contrat §19.8)
 
-**SHA de construction accepté :** `main` = `d69a05a` (poussé). **Ce n'est pas
-le SHA de release** : les étapes 4 et 8 ci-dessous produiront un **nouveau
-commit** (`LICENSE` + version + `CHANGELOG` daté), noté `<SHA_release>`.
+**SHA de construction + correctif accepté :** `main` = `b2e97f2` (poussé,
+run CI global vert `34591427344`). **Ce n'est pas encore le SHA de
+release** : l'étape 4 ci-dessous est **préparée** sur `release/1.0.0`
+(`LICENSE` + version `1.0.0` + `CHANGELOG` daté, non intégrée dans `main`),
+et produira un commit noté `<SHA_release>` une fois intégré.
 
 | # | Étape §19.8 | État | Commande (à exécuter au moment voulu, sous autorisation) |
 |---|---|---|---|
-| 1 | figer le candidat de construction | **fait** | `d69a05a` = `git rev-parse main` |
-| 2 | exécuter la matrice `GSO-T01`–`GSO-T24` | **fait** (§TEST-RESULTS) | `make test` |
+| 1 | figer le candidat de construction | **fait** | `b2e97f2` = `git rev-parse main` |
+| 2 | exécuter la matrice `GSO-T01`–`GSO-T24` | **fait** (§TEST-RESULTS), y compris `GSO-T15` sur `release/1.0.0` | `make test` |
 | 3 | vérifier les exigences `GSO-REQ-*` | **fait** (matrice 204/204) | `make matrix-check` |
-| 4 | choisir la licence + le n° de version + dater le `CHANGELOG` → **`<SHA_release>`** | **NON FAIT** — décisions humaines | (édition manuelle + commit) |
-| 5 | faire valider la **CI distante sur `<SHA_release>`** → **run global vert** | **NON FAIT** — un premier run a eu lieu sur `d69a05a` (non vert) | *(après `push` de `<SHA_release>`)* |
-| 6 | intégrer linéairement dans `main` | fait pour `d69a05a` ; à refaire pour `<SHA_release>` | `git merge --ff-only …` |
-| 7 | revalider `main` | **fait** pour `d69a05a` | `make clean && make install-role && make test && make matrix-check` |
-| 8 | créer et pousser le **tag annoté** sur `<SHA_release>` | **NON EXÉCUTÉ** — autorisation de release distincte | `git tag -a vX.Y.Z <SHA_release> -m "…" && git push origin vX.Y.Z` |
-| 9 | publier la release | **NON EXÉCUTÉ** — autorisation de release distincte | `gh release create vX.Y.Z …` |
+| 4 | choisir la licence + le n° de version + dater le `CHANGELOG` → **`<SHA_release>`** | **PRÉPARÉ** sur `release/1.0.0` — AGPL-3.0-or-later, `1.0.0`, `CHANGELOG` 2026-09-11 ; **non intégré, non poussé** | fait (édition + commit local sur branche dédiée) |
+| 5 | faire valider la **CI distante sur `<SHA_release>`** → **run global vert** | **NON FAIT** — la CI est verte sur `b2e97f2` (baseline), pas encore sur `<SHA_release>` (n'a jamais été poussé) | *(après `push` de `<SHA_release>`, autorisation distincte)* |
+| 6 | intégrer linéairement dans `main` | fait pour `b2e97f2` ; **NON FAIT** pour `<SHA_release>` — autorisation séparée requise | `git merge --ff-only …` |
+| 7 | revalider `main` | **fait** pour `b2e97f2` ; à refaire après intégration de `<SHA_release>` | `make clean && make install-role && make test && make matrix-check` |
+| 8 | créer et pousser le **tag annoté** sur `<SHA_release>` | **NON EXÉCUTÉ** — autorisation de release distincte, après CI verte sur `<SHA_release>` | `git tag -a v1.0.0 <SHA_release> -m "…" && git push origin v1.0.0` |
+| 9 | publier la release | **NON EXÉCUTÉ** — autorisation de release distincte | `gh release create v1.0.0 …` |
 
-**Numéro de version :** non fixé. `v0.1.0` ou `v1.0.0` selon une décision
-humaine ; ce document ne la choisit pas.
+**Numéro de version :** `1.0.0` (décision humaine du 2026-09-11). **Tag
+prévu : `v1.0.0`** — convention déjà en usage dans ce document (`vX.Y.Z`) ;
+vérifiée sans divergence avec `docs/VERSIONING.md` avant préparation. Le
+**contrat architectural reste en version `v0.5.0`** (`1.0.0` versionne le
+dépôt et sa première release, pas le contrat).
 
 ---
 
@@ -120,14 +136,16 @@ humaine ; ce document ne la choisit pas.
 
 | Domaine | Verdict | Conditions restantes (humaines / externes) |
 |---|---|---|
-| **Construction locale** | **`ACCEPTED`** | aucune — **202 / 204** exigences adressées (distribution recalculée mécaniquement : 138 T / 15 S / 47 D / 2 P / 2 N) ; les **2** restantes (GSO-REQ-158, 188) légitimement bloquées ci-dessous ; 24/24 tests normatifs verts, `GSO-T15` vert sans résidu, `make lint` 0 faute, matrice à jour. `main` = `d69a05a`, poussé. |
-| **Publication** (`push` de `main`) | **effectuée** — CI à ramener au vert | `main` = `d69a05a` poussé le 2026-09-10 (autorisation humaine explicite, avance rapide, aucune réécriture). CI distante **observée** (run `34513250088`) : jobs métier verts, **run global non vert** (défaut de garde-fou corrigé). Reste : **pousser le correctif** → nouveau run **vert**. |
-| **Release** (tag + release GitHub) | **`BLOCKED`** | 1) **fichier `LICENSE`** décidé et ajouté (décision humaine) ; 2) **numéro de version** décidé ; 3) `CHANGELOG` daté → **`<SHA_release>`** (nouveau commit) ; 4) **run CI global vert sur `<SHA_release>`** (GSO-REQ-158) ; 5) autorisation de **tag + release** distincte (GSO-REQ-192) |
+| **Construction locale** | **`ACCEPTED`** | aucune — **202 / 204** exigences adressées (distribution recalculée mécaniquement : 138 T / 15 S / 47 D / 2 P / 2 N) ; les **2** restantes (GSO-REQ-158, 188) légitimement bloquées ci-dessous ; 24/24 tests normatifs verts, `GSO-T15` vert sans résidu, `make lint` 0 faute, matrice à jour. `main` = `b2e97f2`, poussé. |
+| **Publication** (`push` de `main`) | **effectuée — CI globale verte** | `main` = `b2e97f2` poussé le 2026-09-11 (autorisation humaine explicite, avance rapide, aucune réécriture). Run [`34591427344`](https://github.com/sepp67/grav-sites-ops/actions/runs/34591427344) : **run global entièrement vert**, porte `conformance` incluse. |
+| **Release** (tag + release GitHub) | **`BLOCKED`** — préparation en cours | 1) ~~fichier `LICENSE` décidé et ajouté~~ **fait** (AGPL-3.0-or-later, `release/1.0.0`) ; 2) ~~numéro de version décidé~~ **fait** (`1.0.0`) ; 3) `CHANGELOG` daté → **`<SHA_release>`** **préparé**, non intégré ; 4) **run CI global vert sur `<SHA_release>`** (GSO-REQ-158) — reste à obtenir après intégration + `push` ; 5) autorisation de **tag `v1.0.0`** + release distincte (GSO-REQ-192) |
 | **Migration réelle** | **`BLOCKED`** | 1) autorisation opérationnelle **distincte** (GSO-REQ-188) ; 2) `inventories/production/` + vault opérationnel fournis hors dépôt ; 3) sauvegarde externe vérifiée du vault source ; 4) migration **site par site** avec preuves réelles ; 5) verdict daté par site (GSO-REQ-171) |
 
 **Conclusion.** La **construction locale de `grav-sites-ops` est acceptée**
-(`main` = `d69a05a`, poussé). La **CI distante doit être ramenée au vert** (un
-correctif de garde-fou est prêt). La **release** et la **migration réelle**
-restent **légitimement bloquées** : chacune attend une décision humaine ou une
+(`main` = `b2e97f2`, poussé, **CI globale verte**). La **licence** et la
+**version** de la première release sont **décidées** (AGPL-3.0-or-later,
+`1.0.0`) et **préparées localement** sur `release/1.0.0` — **non intégrées,
+non poussées, aucun tag**. La **release** et la **migration réelle** restent
+**légitimement bloquées** : chacune attend une autorisation humaine ou une
 condition externe précise, énumérée ci-dessus. Aucune de ces conditions n'est
 transformée en preuve documentaire.

@@ -11,6 +11,9 @@ d'une instance Grav : ce mécanisme appartient exclusivement au rôle.
 
 ## Statut
 
+**Version du dépôt : `1.0.0`** (décision humaine du 2026-09-11 ; tag prévu
+`v1.0.0`, non créé — voir `CHANGELOG` et `docs/VERSIONING.md`).
+
 **Construction en cours — lots L0 (harnais), L1 (données déclaratives),
 L2 (modèle de vault), L3 (sélecteur fermé + préflight), L4 (déploiement d'un
 site), L5 (redémarrage et arrêt d'un site), L6 (contrôle de dérive, lecture
@@ -21,12 +24,15 @@ L10 (consolidation : CI bloquante, `docs/TEST-RESULTS.md`, matrice des 204
 exigences), L11 (acceptation : revue §22, verdicts séparés
 construction / publication / release / migration — `docs/ACCEPTANCE.md`).**
 
-**La construction locale L0–L11 est acceptée** — `main` = `d69a05a`, **poussé**
-(`docs/ACCEPTANCE.md`). La **CI GitHub Actions** a tourné une première fois
-(run `34513250088`) : jobs métier verts, **run global pas encore vert** (défaut
-d'un garde-fou, corrigé — voir `CHANGELOG`). La **release** (tag) et la
-**migration réelle** restent **bloquées** : chacune attend une décision humaine
-ou une condition externe précise (`docs/ACCEPTANCE.md` §4).
+**La construction locale L0–L11 est acceptée** — `main` = `b2e97f2`, **poussé**
+(`docs/ACCEPTANCE.md`). La **CI GitHub Actions** a tourné et le **run global
+est vert** (run [`34591427344`](https://github.com/sepp67/grav-sites-ops/actions/runs/34591427344),
+2026-09-11 — tous les jobs, y compris la porte `conformance`). Une
+**préparation locale de release `1.0.0`** est en cours sur une branche dédiée
+(licence, version, `CHANGELOG` datés) — voir `CHANGELOG` et
+`docs/ACCEPTANCE.md`. Le **tag** et la **migration réelle** restent
+**bloqués** : chacun attend une autorisation ou une condition externe
+distincte (`docs/ACCEPTANCE.md` §4).
 
 Le dépôt reste **non opérationnel par défaut** : ni inventaire de production,
 ni vault opérationnel. Les seules données versionnées sont l'inventaire, le
@@ -108,7 +114,15 @@ rôle `sepp67.grav_site`, épinglé dans `requirements.yml`.
 
 ## Licence
 
-**Non encore fixée** (résidu de lot L0). L11 la signale comme **décision
-humaine bloquante** : un fichier `LICENSE` doit être décidé et ajouté avant
-toute release publique (voir `docs/ACCEPTANCE.md` §4). L11 ne choisit aucune
+SPDX-License-Identifier: AGPL-3.0-or-later
+
+`grav-sites-ops` est distribué sous licence **GNU Affero General Public
+License, version 3 ou ultérieure** (AGPL-3.0-or-later). Texte intégral et non
+modifié : [`LICENSE`](LICENSE) (source officielle :
+<https://www.gnu.org/licenses/agpl-3.0.txt>).
+
+Copyright © 2026 Sébastien Clem.
+
+Décision humaine actée le 2026-09-11 (résidu de lot L0, signalé bloquant par
+L11 — voir `docs/ACCEPTANCE.md` §4) ; L11 lui-même n'avait choisi aucune
 licence.

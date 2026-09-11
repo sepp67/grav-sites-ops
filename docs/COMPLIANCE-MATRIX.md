@@ -208,7 +208,7 @@ poussé) ; release et migration restent **bloquées** — détail et conditions 
 | GSO-REQ-155 | L0 | Runtime transitif | docs/VERSIONING.md | Établi / documenté |
 | GSO-REQ-156 | L0 | Historique attribuable | docs/VERSIONING.md | Établi / documenté |
 | GSO-REQ-157 | L0 | Changelog borné | CHANGELOG.md (versions du dépôt) + REGISTRY-SCHEMA.md (versions du parc) | Satisfait |
-| GSO-REQ-158 | L11 | Tag sur SHA validé | aucun tag ; CI distante desormais executee (run 34513250088) mais PAS globalement verte ; le SHA final de release (avec LICENSE+version+CHANGELOG) devra avoir un run global vert | Non encore démontré (L11) |
+| GSO-REQ-158 | L11 | Tag sur SHA validé | aucun tag ; main = b2e97f2 a un run global vert (34591427344) mais ce n'est PAS le SHA de release ; le SHA final (LICENSE+version 1.0.0+CHANGELOG, prepare sur release/1.0.0, non integre) devra avoir son PROPRE run global vert | Non encore démontré (L11) |
 | GSO-REQ-159 | L11 | Release et exploitation séparées | l11-acceptance-guards (ci.yml sans déclencheur release/tag ; aucune étape de déploiement en CI) | Établi / documenté |
 | GSO-REQ-160 | L9 | Source préservée | MIGRATION.md §0/§12 — non-destruction ; exécution réelle à démontrer | Établi / documenté |
 | GSO-REQ-161 | L9 | Sauvegarde vérifiée | MIGRATION.md §3 — preuve documentaire (non automatisable par contrat) | Établi / documenté |
@@ -242,7 +242,7 @@ poussé) ; release et migration restent **bloquées** — détail et conditions 
 | GSO-REQ-189 | L11 | Documentation exécutable | l11-acceptance-guards (21 cibles make documentees = 21 reelles ; exemples non executables signales) | Établi / documenté |
 | GSO-REQ-190 | L11 | Matrice exhaustive | 08-preflight-construction.md §5 (204 cartographiees) + docs/COMPLIANCE-MATRIX.md (make matrix-check) | Établi / documenté |
 | GSO-REQ-191 | L11 | Audit non exécutoire | audit-grav-sites-ops/ n'a produit aucun commit ; chaque lot L0-L11 autorise separement avant modification | Établi / documenté |
-| GSO-REQ-192 | L11 | Publication séparée | push de main = d69a05a autorise explicitement (rapport L11 rev.3 + rapport correctif) ; l11-acceptance-guards verifie l'avance rapide sans reecriture et l'absence d'automatisation push/tag/release ; l'autorisation HUMAINE est consignee au rapport, non prouvable par un test seul | Établi / documenté |
+| GSO-REQ-192 | L11 | Publication séparée | push de main = b2e97f2 autorise explicitement (rapport L11 rev.3 + rapports correctifs) ; l11-acceptance-guards verifie l'avance rapide sans reecriture et l'absence d'automatisation push/tag/release ; l'autorisation HUMAINE est consignee aux rapports, non prouvable par un test seul | Établi / documenté |
 | GSO-REQ-193 | L0 | Différé non implicite | docs/GOVERNANCE.md | Établi / documenté |
 | GSO-REQ-194 | L0 | Décisions protégées | docs/GOVERNANCE.md | Établi / documenté |
 | GSO-REQ-195 | L0 | Amendement avant code | docs/GOVERNANCE.md | Établi / documenté |
