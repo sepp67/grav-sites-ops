@@ -16,19 +16,37 @@ cd "$REPO_ROOT"
 code_only() { grep -vE '^[[:space:]]*#' "$1"; }
 
 # --- 1. Les wrappers restart/stop ne prennent QUE SITE ---
+# Capture d'abord (le `$( )` de `code_only` — un `grep -vE` externe — va à son
+# terme), grep ensuite sur la valeur déjà capturée (here-string) — jamais
+# `code_only "$f" | grep -q` : SIGPIPE possible sous `set -o pipefail` si un
+# grep -q aval sort tôt -> faux négatif sur ce garde-fou.
 for w in restart-site.sh stop-site.sh deploy.sh; do
   f="scripts/$w"
-  if code_only "$f" | grep -qE '\[ "\$#" -eq 1 \]|"\$#" -ne 1'; then
+  fc="$(code_only "$f" || true)"
+  if grep -qE '\[ "\$#" -eq 1 \]|"\$#" -ne 1' <<<"$fc"; then
     pass "$w : refuse tout argument autre que SITE"
   else
     fail "$w : ne borne pas le nombre d'arguments à 1"
   fi
-  if code_only "$f" | grep -qE '"\$1"[^)]*$' && ! code_only "$f" | grep -qE 'getopts|--(inventory|limit|root|state|extra-vars)|[[:space:]]-i[[:space:]]|-e[[:space:]]'; then
+  if grep -qE '"\$1"[^)]*$' <<<"$fc" \
+     && ! grep -qE 'getopts|--(inventory|limit|root|state|extra-vars)|[[:space:]]-i[[:space:]]|-e[[:space:]]' <<<"$fc"; then
     pass "$w : ne parse aucune option"
   else
     fail "$w : parse des options"
   fi
 done
+# cas négatif synthétique (fichier temporaire, dépôt courant jamais touché) :
+# un wrapper qui parse des options (getopts) DOIT être détecté.
+_l5neg="$(gso_mktemp_dir l5-closed-neg)"
+trap 'rm -rf "$_l5neg"' EXIT
+printf '#!/usr/bin/env bash\nwhile getopts "i:" opt; do :; done\necho "$1"\n' > "$_l5neg/w.sh"
+_neg_fc="$(code_only "$_l5neg/w.sh" || true)"
+if grep -qE '"\$1"[^)]*$' <<<"$_neg_fc" \
+   && ! grep -qE 'getopts|--(inventory|limit|root|state|extra-vars)|[[:space:]]-i[[:space:]]|-e[[:space:]]' <<<"$_neg_fc"; then
+  fail "cas négatif : un wrapper synthétique utilisant getopts n'est PAS détecté comme parsant des options (faux négatif)"
+else
+  pass "cas négatif : un wrapper synthétique utilisant getopts est bien détecté comme parsant des options"
+fi
 
 # --- 2. site-mutation.sh valide le playbook contre une liste FERMÉE ---
 if grep -qE 'deploy-site\.yml \| restart-site\.yml \| stop-site\.yml\)' scripts/lib/site-mutation.sh; then
@@ -49,13 +67,22 @@ stray=""
 while IFS= read -r f; do
   [ -z "$f" ] && continue
   [ "$f" = "playbooks/_shared/translate.yml" ] && continue
-  if code_only "$f" | grep -qE 'grav_state[:=]'; then stray="$stray $f"; fi
+  # capture d'abord, grep ensuite sur la valeur capturée (même motif que
+  # ci-dessus : jamais `code_only "$f" | grep -q`).
+  _fc="$(code_only "$f" || true)"
+  if grep -qE 'grav_state[:=]' <<<"$_fc"; then stray="$stray $f"; fi
 done < <(git ls-files 'playbooks/*' 'scripts/*')
 if [ -z "$stray" ]; then
   pass "grav_state n'est assigné que dans playbooks/_shared/translate.yml"
 else
   fail "grav_state assigné hors de la traduction :$stray"
 fi
+# cas négatif synthétique : une assignation grav_state: hors traduction DOIT
+# être détectée par cette même logique.
+_neg_state='grav_state: started'
+grep -qE 'grav_state[:=]' <<<"$_neg_state" \
+  && pass "cas négatif : une assignation grav_state: synthétique est bien détectée par cette logique" \
+  || fail "cas négatif : une assignation grav_state: synthétique n'est PAS détectée (faux négatif)"
 if grep -qE "grav_state: >-" playbooks/_shared/translate.yml \
    && grep -qE "_gso_intent == 'restart'" playbooks/_shared/translate.yml \
    && grep -qE "_gso_intent == 'stop'" playbooks/_shared/translate.yml; then

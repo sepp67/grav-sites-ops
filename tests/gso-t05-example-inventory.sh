@@ -73,11 +73,31 @@ else
 fi
 
 # --- 3. Non-confusion avec la production ---
-if git ls-files | grep -q '^inventories/production/'; then
+# On capture D'ABORD la sortie complète de `git ls-files` (le `$( )` attend sa
+# fin normale) puis on cherche dans cette valeur déjà capturée (here-string) —
+# jamais `git ls-files | grep -q` : sous `set -o pipefail`, un `grep -q` qui
+# sort dès la 1re ligne trouvée ferait recevoir SIGPIPE à `git` (encore en
+# écriture) -> `git` sort en 141 -> pipefail fait échouer le pipeline ALORS
+# QUE grep a trouvé la ligne -> faux négatif possible sur ce garde-fou.
+_tracked="$(git ls-files)"; _grc=$?
+if [ "$_grc" -ne 0 ]; then
+  fail "git ls-files a échoué (rc=$_grc) — impossible de vérifier inventories/production/"
+elif grep -q '^inventories/production/' <<<"$_tracked"; then
   fail "des fichiers inventories/production/ sont suivis (interdit à ce stade)"
 else
   pass "aucun fichier inventories/production/ suivi"
 fi
+# cas négatif synthétique (copie temporaire, dépôt courant jamais touché) :
+# un inventaire de production suivi DOIT être détecté par cette même logique.
+_neg="$tmp/sigpipe-neg-t05"; mkdir -p "$_neg/inventories/production"
+git -C "$_neg" init -q
+: > "$_neg/inventories/production/hosts.yml"
+git -C "$_neg" -c user.email=t@t -c user.name=t add -A >/dev/null
+git -C "$_neg" -c user.email=t@t -c user.name=t commit -qm "cas négatif"
+_neg_tracked="$(git -C "$_neg" ls-files)"
+grep -q '^inventories/production/' <<<"$_neg_tracked" \
+  && pass "cas négatif : inventories/production/hosts.yml suivi est bien détecté par cette logique" \
+  || fail "cas négatif : un inventaire de production suivi n'est PAS détecté (faux négatif)"
 
 case "$INV" in
   */example/*) pass "l'inventaire vit sous inventories/example/" ;;

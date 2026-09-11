@@ -54,11 +54,29 @@ else
   pass "aucun playbook de retrait / réactivation (GSO-REQ-029)"
 fi
 
-if git ls-files 'scripts/*' 'playbooks/*' 'Makefile' | grep -qiE 'retire-site|reactivate-site|decommission'; then
+# Capture d'abord (le producteur `git ls-files` va à son terme dans le
+# `$( )`), grep ensuite sur la valeur déjà capturée (here-string) — jamais
+# `producteur | grep -q` : sous `set -o pipefail`, un SIGPIPE du producteur
+# (quand `grep -q` sort tôt) ferait échouer le pipeline même si grep a trouvé
+# la ligne -> faux négatif sur ce garde-fou.
+_lc_files="$(git ls-files 'scripts/*' 'playbooks/*' 'Makefile')"; _grc=$?
+if [ "$_grc" -ne 0 ]; then
+  fail "git ls-files a échoué (rc=$_grc)"
+elif grep -qiE 'retire-site|reactivate-site|decommission' <<<"$_lc_files"; then
   fail "un script / une cible de transformation du cycle de vie a été livré"
 else
   pass "aucun script ni cible Makefile appliquant un retrait / une réactivation"
 fi
+# cas négatif synthétique (copie temporaire, dépôt courant jamais touché)
+_neg="$tmp/sigpipe-neg-t21a"; mkdir -p "$_neg/scripts"
+git -C "$_neg" init -q
+: > "$_neg/scripts/retire-site.sh"
+git -C "$_neg" -c user.email=t@t -c user.name=t add -A >/dev/null
+git -C "$_neg" -c user.email=t@t -c user.name=t commit -qm "cas négatif"
+_neg_files="$(git -C "$_neg" ls-files 'scripts/*' 'playbooks/*' 'Makefile')"
+grep -qiE 'retire-site|reactivate-site|decommission' <<<"$_neg_files" \
+  && pass "cas négatif : un script « retire-site.sh » est bien détecté par cette logique" \
+  || fail "cas négatif : un script de retrait n'est PAS détecté (faux négatif)"
 
 # aucun appel d'hyperviseur (GSO-REQ-179)
 if git grep -nIE 'proxmox|pvesh|qm (start|stop|shutdown)|libvirt|virsh|hypervisor|vim-cmd|esxcli' \
@@ -79,11 +97,22 @@ else
 fi
 
 # le validateur du cycle de vie est strictement en lecture seule
-if code_only "$LC" | grep -qE "\bopen\([^)]*['\"][wa]['\"]|\.write\(|os\.(remove|rename|replace|mkdir|makedirs)|shutil\.|subprocess|Popen|os\.system|git " ; then
+# (capture puis here-string : `code_only` est un `grep -vE` externe — même
+# risque de SIGPIPE que ci-dessus si on le pipe directement dans `grep -q`)
+_lc_code="$(code_only "$LC" || true)"
+if grep -qE "\bopen\([^)]*['\"][wa]['\"]|\.write\(|os\.(remove|rename|replace|mkdir|makedirs)|shutil\.|subprocess|Popen|os\.system|git " <<<"$_lc_code"; then
   fail "gso_lifecycle.py contient une primitive d'écriture / d'exécution"
 else
   pass "gso_lifecycle.py : lecture seule (aucune écriture, aucun sous-processus)"
 fi
+# cas négatif synthétique (fichier temporaire, dépôt courant jamais touché) :
+# une primitive d'écriture DOIT être détectée par la même logique corrigée
+_neg_py="$tmp/sigpipe-neg-t21b.py"
+printf 'def f():\n    open("x", "w")\n' > "$_neg_py"
+_neg_code="$(code_only "$_neg_py" || true)"
+grep -qE "\bopen\([^)]*['\"][wa]['\"]|\.write\(|os\.(remove|rename|replace|mkdir|makedirs)|shutil\.|subprocess|Popen|os\.system|git " <<<"$_neg_code" \
+  && pass "cas négatif : un open(...,\"w\") synthétique est bien détecté par cette logique" \
+  || fail "cas négatif : une primitive d'écriture synthétique n'est PAS détectée (faux négatif)"
 
 # les registres documentaires vivent hors de group_vars/ (jamais auto-chargés)
 if git ls-files | grep -E 'group_vars/.*(retired-sites|reactivated-sites)' ; then

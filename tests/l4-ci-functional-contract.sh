@@ -37,11 +37,26 @@ else
 fi
 
 # --- 3. Aucune référence d'image flottante dans la CI ---
-if ci_code | grep -qE ':latest|@latest|image:[[:space:]]*[^@]*$'; then
+# Capture d'abord (le `$( )` attend la fin normale de `ci_code`, un `grep -vE`
+# externe), grep ensuite sur la valeur déjà capturée (here-string) — jamais
+# `producteur | grep -q` : sous `set -o pipefail`, un SIGPIPE du producteur
+# (quand `grep -q` sort tôt) ferait échouer le pipeline même si grep a trouvé
+# la ligne -> faux négatif sur ce garde-fou.
+_ci_code_captured="$(ci_code || true)"
+if grep -qE ':latest|@latest|image:[[:space:]]*[^@]*$' <<<"$_ci_code_captured"; then
   fail "référence d'image flottante (latest / sans digest) dans la CI"
 else
   pass "aucune référence d'image flottante dans la CI"
 fi
+# cas négatif synthétique (fichier temporaire, dépôt courant jamais touché) :
+# une référence flottante DOIT être détectée par cette même logique.
+_neg="$(gso_mktemp_dir l4-ci-contract-neg)"
+trap 'rm -rf "$_neg"' EXIT
+printf 'image: ghcr.io/example/app:latest\n' > "$_neg/ci.yml"
+_neg_code="$(grep -vE '^[[:space:]]*#' "$_neg/ci.yml" || true)"
+grep -qE ':latest|@latest|image:[[:space:]]*[^@]*$' <<<"$_neg_code" \
+  && pass "cas négatif : une image « :latest » synthétique est bien détectée par cette logique" \
+  || fail "cas négatif : une référence d'image flottante n'est PAS détectée (faux négatif)"
 
 # --- 4. Aucun secret / identifiant de registre requis par la CI ---
 hits="$(ci_code | grep -nE '\$\{\{[[:space:]]*secrets\.|docker[[:space:]]+login|GHCR_(TOKEN|PAT)|REGISTRY_(USER|USERNAME|PASSWORD|TOKEN)|registry-(url|username|password)|username:.*ghcr' || true)"

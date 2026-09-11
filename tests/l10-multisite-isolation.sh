@@ -133,12 +133,26 @@ fi
 # --------------------------------------------------------------------------
 # 5. Statique : la traduction n'indexe QUE par inventory_hostname
 # --------------------------------------------------------------------------
-if grep -vE '^\s*#' playbooks/_shared/translate.yml | grep -qE "grav_sites\[[^]]*inventory_hostname[^]]*\]" \
-   && ! grep -vE '^\s*#' playbooks/_shared/translate.yml | grep -qE "grav_sites\['?grav-|vault_grav_sites\['?grav-|grav_sites\.[a-z]"; then
+# Capture d'abord (le `$( )` attend la fin normale du `grep -vE` externe),
+# grep ensuite sur la valeur déjà capturée (here-string) — jamais
+# `producteur | grep -q` : sous `set -o pipefail`, un SIGPIPE du producteur
+# (quand `grep -q` sort tôt) ferait échouer le pipeline même si grep a trouvé
+# la ligne -> faux négatif possible sur ce garde-fou.
+_translate_code="$(grep -vE '^\s*#' playbooks/_shared/translate.yml || true)"
+if grep -qE "grav_sites\[[^]]*inventory_hostname[^]]*\]" <<<"$_translate_code" \
+   && ! grep -qE "grav_sites\['?grav-|vault_grav_sites\['?grav-|grav_sites\.[a-z]" <<<"$_translate_code"; then
   pass "translate.yml : accès aux données UNIQUEMENT par grav_sites[inventory_hostname] / vault_grav_sites[inventory_hostname]"
 else
   fail "translate.yml : accès aux données par une clé autre que inventory_hostname"
 fi
+# cas négatif synthétique (fichier temporaire, dépôt courant jamais touché) :
+# une clé codée en dur (grav_sites['grav-alpha']) DOIT être détectée.
+_neg_translate="$tmp/sigpipe-neg-translate.yml"
+printf 'x: "{{ grav_sites['"'"'grav-alpha'"'"'] }}"\n' > "$_neg_translate"
+_neg_code="$(grep -vE '^\s*#' "$_neg_translate" || true)"
+grep -qE "grav_sites\['?grav-|vault_grav_sites\['?grav-|grav_sites\.[a-z]" <<<"$_neg_code" \
+  && pass "cas négatif : une clé grav_sites['grav-alpha'] codée en dur est bien détectée par cette logique" \
+  || fail "cas négatif : une clé codée en dur n'est PAS détectée (faux négatif)"
 
 # --------------------------------------------------------------------------
 # 6. Fixtures et dépôt inchangés (comparaison avant / après — n'exige pas un

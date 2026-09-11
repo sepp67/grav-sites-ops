@@ -31,10 +31,15 @@ code_only() { grep -vE '^[[:space:]]*#' "$1"; }
 # --------------------------------------------------------------------------
 # 1. Gardes statiques sur les playbooks de contrôle
 # --------------------------------------------------------------------------
+# Capture d'abord (le `$( )` de `code_only` — un `grep -vE` externe — va à son
+# terme), grep ensuite sur la valeur déjà capturée (here-string) — jamais
+# `code_only "$f" | grep -q` : SIGPIPE possible sous `set -o pipefail` si un
+# grep -q aval sort tôt -> faux négatif sur ce garde-fou.
 for pb in check-site.yml check-all.yml; do
   f="playbooks/$pb"
   [ -f "$f" ] || { fail "playbook manquant : $pb"; continue; }
-  if code_only "$f" | grep -qE '(include_role|import_role)'; then
+  fc="$(code_only "$f" || true)"
+  if grep -qE '(include_role|import_role)' <<<"$fc"; then
     fail "$pb : invoque le rôle (interdit — GSO-REQ-090)"
   else
     pass "$pb : aucun include_role / import_role"
@@ -45,6 +50,14 @@ for pb in check-site.yml check-all.yml; do
     fail "$pb : gather_facts non désactivé"
   fi
 done
+# cas négatif synthétique (fichier temporaire, dépôt courant jamais touché) :
+# un include_role DOIT être détecté par cette même logique.
+_neg="$tmp/sigpipe-neg-t20.yml"
+printf 'tasks:\n  - include_role:\n      name: sepp67.grav_site\n' > "$_neg"
+_neg_fc="$(code_only "$_neg" || true)"
+grep -qE '(include_role|import_role)' <<<"$_neg_fc" \
+  && pass "cas négatif : un include_role synthétique est bien détecté par cette logique" \
+  || fail "cas négatif : un include_role synthétique n'est PAS détecté (faux négatif)"
 
 # _shared/observe.yml (collecte partagée) : lecture seule uniquement
 if git grep -nIE 'ansible\.builtin\.(copy|template|file|lineinfile|blockinfile|replace|shell)|state:[[:space:]]*(present|absent|started|stopped|restarted)|docker[[:space:]]+(run|rm|stop|start|restart|pull|create|kill)|force_pull|community\.docker' -- playbooks/check-site.yml playbooks/check-all.yml playbooks/_shared/observe.yml ; then
@@ -54,11 +67,18 @@ else
 fi
 
 # GSO-REQ-104 : aucune bascule de check-all vers une mutation
-if code_only playbooks/check-all.yml | grep -qE '_gso_intent|_shared/mutate\.yml|deploy-site\.yml|i_understand|--extra-vars|include_role|import_role'; then
+_ca_fc="$(code_only playbooks/check-all.yml || true)"
+if grep -qE '_gso_intent|_shared/mutate\.yml|deploy-site\.yml|i_understand|--extra-vars|include_role|import_role' <<<"$_ca_fc"; then
   fail "check-all.yml : référence une intention mutante ou une confirmation de mutation"
 else
   pass "check-all.yml : aucune bascule possible vers une mutation (GSO-REQ-104)"
 fi
+# cas négatif synthétique : une référence _gso_intent DOIT être détectée
+_neg_intent='vars:
+  _gso_intent: deploy'
+grep -qE '_gso_intent|_shared/mutate\.yml|deploy-site\.yml|i_understand|--extra-vars|include_role|import_role' <<<"$_neg_intent" \
+  && pass "cas négatif : une référence _gso_intent synthétique est bien détectée par cette logique" \
+  || fail "cas négatif : une référence _gso_intent synthétique n'est PAS détectée (faux négatif)"
 
 # le chemin de contrôle ne prend PAS le verrou de mutation
 if grep -qE 'flock|site-mutation\.sh|/locks/' scripts/lib/site-check.sh scripts/check-site.sh scripts/check-all.sh; then

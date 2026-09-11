@@ -66,11 +66,32 @@ fi
 # GSO-REQ-139 — la CI fonctionne SANS le vault de production
 # --------------------------------------------------------------------------
 # `inventories/production/` est fourni HORS dépôt : aucun fichier suivi.
-if git ls-files | grep -qE '^inventories/production/'; then
+# Capture d'abord (le `$( )` attend la fin normale de `git ls-files`), grep
+# ensuite sur la valeur déjà capturée (here-string) — jamais
+# `git ls-files | grep -q` : sous `set -o pipefail`, un `grep -q` qui sort
+# dès la 1re ligne trouvée fait recevoir SIGPIPE à `git` -> pipeline en échec
+# ALORS QUE grep a trouvé la ligne -> faux négatif possible sur ce garde-fou.
+_tracked="$(git ls-files)"; _grc=$?
+if [ "$_grc" -ne 0 ]; then
+  fail "GSO-REQ-139 : git ls-files a échoué (rc=$_grc)"
+elif grep -qE '^inventories/production/' <<<"$_tracked"; then
   fail "GSO-REQ-139 : des fichiers inventories/production/ sont suivis"
 else
   pass "GSO-REQ-139 : inventories/production/ n'est pas dans le dépôt (fourni hors dépôt)"
 fi
+# cas négatif synthétique (copie temporaire, dépôt courant jamais touché) :
+# un fichier de production suivi DOIT être détecté par cette même logique.
+_neg="$(gso_mktemp_dir l10-ci-blocking-neg)"
+trap 'rm -rf "$_neg"' EXIT
+mkdir -p "$_neg/inventories/production"
+git -C "$_neg" init -q
+: > "$_neg/inventories/production/hosts.yml"
+git -C "$_neg" -c user.email=t@t -c user.name=t add -A >/dev/null
+git -C "$_neg" -c user.email=t@t -c user.name=t commit -qm "cas négatif"
+_neg_tracked="$(git -C "$_neg" ls-files)"
+grep -qE '^inventories/production/' <<<"$_neg_tracked" \
+  && pass "cas négatif : inventories/production/hosts.yml suivi est bien détecté par cette logique" \
+  || fail "cas négatif : un inventaire de production suivi n'est PAS détecté (faux négatif)"
 # aucun test ne lit un vault de production RÉEL (chemin absolu / racine du dépôt) —
 # les tests qui écrivent `$T/inventories/production/.../vault.yml` dans un
 # mktemp sont légitimes et ne comptent pas.

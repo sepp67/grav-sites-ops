@@ -41,11 +41,24 @@ fi
 grep -q 'git show\|--history-before' "$WRAP" && pass "le wrapper délègue la comparaison à gso_lifecycle.py --history-before" \
   || fail "le wrapper n'utilise pas gso_lifecycle.py"
 code_only() { grep -vE '^[[:space:]]*#' "$1"; }
-if code_only "$WRAP" | grep -qE 'git (add|commit|push|checkout|reset|rebase|merge|tag)|>[[:space:]]*"?\$ROOT|tee '; then
+# capture d'abord (le `$( )` de `code_only` — un `grep -vE` externe — va à son
+# terme), grep ensuite sur la valeur déjà capturée (here-string) — jamais
+# `code_only "$f" | grep -q` : SIGPIPE possible sous `set -o pipefail` si un
+# grep -q aval sort tôt -> faux négatif sur ce garde-fou.
+_wrap_fc="$(code_only "$WRAP" || true)"
+if grep -qE 'git (add|commit|push|checkout|reset|rebase|merge|tag)|>[[:space:]]*"?\$ROOT|tee ' <<<"$_wrap_fc"; then
   fail "le wrapper contient une commande Git mutante ou une écriture dans le dépôt"
 else
   pass "le wrapper : lecture seule (git show/log/rev-parse uniquement)"
 fi
+# cas négatif synthétique (fichier temporaire, dépôt courant jamais touché) :
+# une commande Git mutante (git commit) DOIT être détectée par cette logique.
+_neg="$tmp/sigpipe-neg-t8-wrap.sh"
+printf '#!/usr/bin/env bash\ngit commit -qm "x"\n' > "$_neg"
+_neg_fc="$(code_only "$_neg" || true)"
+grep -qE 'git (add|commit|push|checkout|reset|rebase|merge|tag)|>[[:space:]]*"?\$ROOT|tee ' <<<"$_neg_fc" \
+  && pass "cas négatif : un « git commit » synthétique est bien détecté par cette logique" \
+  || fail "cas négatif : une commande Git mutante synthétique n'est PAS détectée (faux négatif)"
 
 # --------------------------------------------------------------------------
 # Fabrique d'un mini-dépôt jouet

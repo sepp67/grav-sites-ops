@@ -71,12 +71,28 @@ check_absent "aucune restauration / import automatique de sauvegarde de contenu"
 # --- 3. Pas de rollback automatique après échec (GSO-REQ-114) ---
 # aucun bloc rescue/always, ni ignore_errors couplé à une reprise, dans les
 # playbooks de mutation : un échec s'arrête, l'humain décide.
-rescue_hit="$(for f in $(git ls-files 'playbooks/*.yml' 'playbooks/**/*.yml'); do code_only "$f" | grep -qE 'rescue:|always:' && echo "$f"; done || true)"
+# capture le code de CHAQUE fichier d'abord (le `$( )` de `code_only` va à
+# son terme), puis grep sur la valeur déjà capturée (here-string) — jamais
+# `code_only "$f" | grep -q` : SIGPIPE possible sous `set -o pipefail` si le
+# grep -q aval sort tôt -> faux négatif sur ce garde-fou.
+rescue_hit="$(for f in $(git ls-files 'playbooks/*.yml' 'playbooks/**/*.yml'); do
+  _fc="$(code_only "$f" || true)"
+  grep -qE 'rescue:|always:' <<<"$_fc" && echo "$f"
+done || true)"
 if [ -z "$rescue_hit" ]; then
   pass "aucun bloc rescue/always dans les playbooks : un échec de mise à jour ne déclenche aucun rollback automatique (GSO-REQ-114)"
 else
   fail "bloc rescue/always dans un playbook (enchaînement aveugle possible) : $rescue_hit"
 fi
+# cas négatif synthétique (fichier temporaire, dépôt courant jamais touché) :
+# un bloc rescue: DOIT être détecté par cette même logique.
+_l7neg="$(gso_mktemp_dir l7-guard-neg)"
+trap 'rm -rf "$_l7neg"' EXIT
+printf 'tasks:\n  - block:\n      - debug: {}\n    rescue:\n      - debug: {}\n' > "$_l7neg/p.yml"
+_neg_fc="$(code_only "$_l7neg/p.yml" || true)"
+grep -qE 'rescue:|always:' <<<"$_neg_fc" \
+  && pass "cas négatif : un bloc rescue: synthétique est bien détecté par cette logique" \
+  || fail "cas négatif : un bloc rescue: synthétique n'est PAS détecté (faux négatif)"
 
 # --- 4. Journal de versions du rôle jamais réécrit (GSO-REQ-117) ---
 check_absent "l'orchestrateur n'écrit jamais .deployed_state.yml / .deployed_version / deployed_versions.log" \
@@ -103,11 +119,19 @@ if grep -qE '^(update|rollback):' Makefile; then
 else
   pass "aucune cible make update / make rollback"
 fi
-if all_code | grep -qE "_gso_intent:[[:space:]]*(update|rollback)"; then
+# capture d'abord (le `$( )` de `all_code` va à son terme), grep ensuite sur
+# la valeur déjà capturée — jamais `all_code | grep -q` (même risque SIGPIPE).
+_all_code_captured="$(all_code || true)"
+if grep -qE "_gso_intent:[[:space:]]*(update|rollback)" <<<"$_all_code_captured"; then
   fail "intention _gso_intent 'update' ou 'rollback' introduite"
 else
   pass "aucune nouvelle intention _gso_intent (deploy/restart/stop inchangés)"
 fi
+# cas négatif synthétique : une intention _gso_intent: update DOIT être détectée
+_neg_intent='_gso_intent: update'
+grep -qE "_gso_intent:[[:space:]]*(update|rollback)" <<<"$_neg_intent" \
+  && pass "cas négatif : une intention _gso_intent: update synthétique est bien détectée" \
+  || fail "cas négatif : une intention _gso_intent: update n'est PAS détectée (faux négatif)"
 # la liste fermée des playbooks de mutation reste deploy/restart/stop
 if grep -qE 'deploy-site\.yml \| restart-site\.yml \| stop-site\.yml\)' scripts/lib/site-mutation.sh \
    && ! grep -qE 'update-site\.yml|rollback-site\.yml' scripts/lib/site-mutation.sh; then

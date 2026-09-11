@@ -176,11 +176,31 @@ fi
 # --------------------------------------------------------------------------
 # 6. GSO-REQ-188 — migration réelle NON exécutée
 # --------------------------------------------------------------------------
-if git ls-files | grep -qE '^inventories/production/'; then
+# Capture d'abord (le `$( )` attend la fin normale de `git ls-files`), grep
+# ensuite sur la valeur déjà capturée (here-string) — jamais
+# `git ls-files | grep -q` (SIGPIPE 141 possible sous `set -o pipefail`,
+# faux négatif si le grep aval sort tôt alors qu'il a trouvé la ligne).
+_tracked="$(git ls-files)"; _grc=$?
+if [ "$_grc" -ne 0 ]; then
+  fail "GSO-REQ-188 : git ls-files a échoué (rc=$_grc)"
+elif grep -qE '^inventories/production/' <<<"$_tracked"; then
   fail "GSO-REQ-188 : des fichiers inventories/production/ sont suivis (migration/opération réelle)"
 else
   pass "GSO-REQ-188 : aucun inventaire de production suivi — conformité établie sur données fictives"
 fi
+# cas négatif synthétique (copie temporaire, dépôt courant jamais touché) :
+# un inventaire de production suivi DOIT être détecté par cette même logique.
+_neg="$(gso_mktemp_dir l11-acceptance-neg)"
+trap 'rm -rf "$_neg"' EXIT
+mkdir -p "$_neg/inventories/production"
+git -C "$_neg" init -q
+: > "$_neg/inventories/production/hosts.yml"
+git -C "$_neg" -c user.email=t@t -c user.name=t add -A >/dev/null
+git -C "$_neg" -c user.email=t@t -c user.name=t commit -qm "cas négatif"
+_neg_tracked="$(git -C "$_neg" ls-files)"
+grep -qE '^inventories/production/' <<<"$_neg_tracked" \
+  && pass "cas négatif : inventories/production/hosts.yml suivi est bien détecté par cette logique" \
+  || fail "cas négatif : un inventaire de production suivi n'est PAS détecté (faux négatif)"
 grep -qiE 'Migration réelle.*`BLOCKED`|`BLOCKED`.*[Mm]igration' "$ACC" \
   && pass "GSO-REQ-188 : docs/ACCEPTANCE.md maintient la migration réelle à l'état BLOCKED" \
   || fail "GSO-REQ-188 : docs/ACCEPTANCE.md ne bloque pas explicitement la migration réelle"

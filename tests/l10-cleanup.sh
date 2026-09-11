@@ -23,12 +23,24 @@ DIR="$(cd "$(dirname "$0")" && pwd)"
 cd "$REPO_ROOT"
 code_only() { grep -vE '^[[:space:]]*#' "$1"; }
 
+# trap EXIT unique pour tout le script : les appels `trap … EXIT` ne
+# s'empilent PAS en bash (chacun remplace le précédent) — un trap par
+# répertoire temporaire créé plus loin dans ce fichier laisserait les
+# premiers résidus non nettoyés. Un seul trap, posé ici, couvre les trois
+# répertoires créés plus bas (variables vides tant que non affectées).
+_l10_cleanup() {
+  [ -n "${_neg_t15:-}" ]   && rm -rf "$_neg_t15"
+  [ -n "${_neg_broad:-}" ] && rm -rf "$_neg_broad"
+  [ -n "${sample_log:-}" ] && rm -rf "$sample_log"
+}
+trap _l10_cleanup EXIT
+
 # --------------------------------------------------------------------------
 # 1. Gardes statiques sur tous les tests
 # --------------------------------------------------------------------------
 missing_trap=""; missing_prefix=""
 while IFS= read -r f; do
-  c="$(code_only "$f")"
+  c="$(code_only "$f" || true)"
   b="$(basename "$f")"
   # un test « crée un répertoire temporaire » s'il AFFECTE le résultat de
   # gso_mktemp_dir ou de `mktemp -d` à une variable (forme `x="$(… )"`).
@@ -47,31 +59,68 @@ for fn in gso_mktemp_dir gso_isolate_runtime gso_assert_runtime_clean gso_fake_d
 done
 
 # GSO-T15 : nettoyage borné à $T + ses ressources nommées (jamais un prune)
-if code_only tests/gso-t15-real-deploy.sh | grep -qE 'docker rm -f "\$created_container"' \
-   && code_only tests/gso-t15-real-deploy.sh | grep -qE 'docker network rm "\$created_network"' \
-   && ! code_only tests/gso-t15-real-deploy.sh | grep -qwE 'prune'; then
+# Capture d'abord (le `$( )` de `code_only` va à son terme), grep ensuite sur
+# la valeur déjà capturée — jamais `code_only "$f" | grep -q` : SIGPIPE
+# possible sous `set -o pipefail` si un grep -q aval sort tôt -> faux négatif.
+# (Lecture seule de gso-t15-real-deploy.sh : ce fichier n'est PAS modifié ici.)
+_t15_fc="$(code_only tests/gso-t15-real-deploy.sh || true)"
+if grep -qE 'docker rm -f "\$created_container"' <<<"$_t15_fc" \
+   && grep -qE 'docker network rm "\$created_network"' <<<"$_t15_fc" \
+   && ! grep -qwE 'prune' <<<"$_t15_fc"; then
   pass "GSO-T15 : nettoyage borné aux ressources qu'il a créées (jamais un prune)"
 else
   fail "GSO-T15 : nettoyage non conforme"
 fi
+# cas négatif synthétique (fichier temporaire, dépôt courant jamais touché) :
+# un `docker ... prune` DOIT être détecté par cette même logique.
+_neg_t15="$(gso_mktemp_dir l10-cleanup-neg)"
+printf 'docker rm -f "$created_container"\ndocker network rm "$created_network"\ndocker system prune -f\n' > "$_neg_t15/gso-t15-fake.sh"
+_neg_t15_fc="$(code_only "$_neg_t15/gso-t15-fake.sh" || true)"
+if grep -qE 'docker rm -f "\$created_container"' <<<"$_neg_t15_fc" \
+   && grep -qE 'docker network rm "\$created_network"' <<<"$_neg_t15_fc" \
+   && ! grep -qwE 'prune' <<<"$_neg_t15_fc"; then
+  fail "cas négatif : un « docker system prune » synthétique n'est PAS détecté (faux négatif)"
+else
+  pass "cas négatif : un « docker system prune » synthétique est bien détecté par cette logique"
+fi
 
 # aucun test n'exécute un nettoyage NON borné (motif en DÉBUT de commande, hors
 # arguments de grep / git grep qui, eux, RECHERCHENT ces motifs interdits).
+# Capture ENTIÈREMENT le pipeline de filtrage (`code_only | grep -v`, sans
+# `-q` en aval dans le `$( )` : les deux commandes vont à leur terme) puis
+# applique le `grep -q` final sur la valeur déjà capturée (here-string) —
+# jamais de `-q` DANS un pipeline multi-étages : sous `set -o pipefail`, un
+# SIGPIPE d'un maillon intermédiaire ferait échouer tout le pipeline même si
+# le dernier grep a trouvé la ligne -> faux négatif sur ce garde-fou.
 broad=""
 while IFS= read -r f; do
-  if code_only "$f" | grep -vE 'grep|git grep' \
-       | grep -qE '(^|\bthen |;\s*|&&\s*|\|\|\s*)(docker (system |image |volume |network )?prune|docker rm +-f? *\$\(docker ps|rm -rf +/tmp/\*)'; then
+  _filtered="$(code_only "$f" | grep -vE 'grep|git grep' || true)"
+  if grep -qE '(^|\bthen |;\s*|&&\s*|\|\|\s*)(docker (system |image |volume |network )?prune|docker rm +-f? *\$\(docker ps|rm -rf +/tmp/\*)' <<<"$_filtered"; then
     broad="$broad $(basename "$f")"
   fi
 done < <(git ls-files 'tests/*.sh' ':!tests/lib/**')
 [ -z "$broad" ] && pass "aucun test n'exécute de nettoyage non borné (prune, docker rm en masse, rm -rf /tmp/*)" || fail "nettoyage non borné :$broad"
+# cas négatif synthétique (fichier temporaire, dépôt courant jamais touché) :
+# un nettoyage NON borné (docker system prune) DOIT être détecté.
+_neg_broad="$(gso_mktemp_dir l10-cleanup-neg-broad)"
+printf 'docker system prune -f\n' > "$_neg_broad/x.sh"
+_neg_broad_filtered="$(code_only "$_neg_broad/x.sh" | grep -vE 'grep|git grep' || true)"
+grep -qE '(^|\bthen |;\s*|&&\s*|\|\|\s*)(docker (system |image |volume |network )?prune|docker rm +-f? *\$\(docker ps|rm -rf +/tmp/\*)' <<<"$_neg_broad_filtered" \
+  && pass "cas négatif : un « docker system prune » non borné synthétique est bien détecté par cette logique" \
+  || fail "cas négatif : un nettoyage non borné synthétique n'est PAS détecté (faux négatif)"
 
 # la doublure de docker (L6) refuse toute sous-commande mutante -> pas de résidu Docker en L6
-if code_only tests/lib/common.sh | grep -qE 'FAKE-DOCKER-REFUS'; then
+_common_fc="$(code_only tests/lib/common.sh || true)"
+if grep -qE 'FAKE-DOCKER-REFUS' <<<"$_common_fc"; then
   pass "fausse CLI docker (L6/L8) : refuse run/rm/stop/prune -> aucun conteneur possible"
 else
   fail "fausse CLI docker : garde mutante absente"
 fi
+# cas négatif synthétique : le motif FAKE-DOCKER-REFUS DOIT être détecté quand présent
+_neg_marker='echo "FAKE-DOCKER-REFUS"'
+grep -qE 'FAKE-DOCKER-REFUS' <<<"$_neg_marker" \
+  && pass "cas négatif : le motif FAKE-DOCKER-REFUS synthétique est bien détecté par cette logique" \
+  || fail "cas négatif : le motif FAKE-DOCKER-REFUS synthétique n'est PAS détecté (faux négatif)"
 
 # --------------------------------------------------------------------------
 # 2. Preuve dynamique : échantillon représentatif, puis zéro résidu
@@ -86,7 +135,6 @@ snap_git() { git -C "$REPO_ROOT" status --porcelain || true; }
 # le temps de l'exécution et le contrôle « dépôt suivi inchangé » deviendrait
 # sensible à une course).
 sample_log="$(gso_mktemp_dir l10-cleanup-sample)"
-trap 'rm -rf "$sample_log"' EXIT
 
 rt0="$(snap_rt)"; tmp0="$(snap_tmp)"; dk0="$(snap_dk)"; git0="$(snap_git)"
 

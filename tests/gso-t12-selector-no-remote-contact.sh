@@ -40,12 +40,26 @@ done <<< "$TARGETS"
 [ "$bad" -eq 0 ] && pass "aucune primitive ansible-playbook / ssh / rôle dans le sélecteur et le préflight"
 
 # --- 2. Aucune option --root sur l'interface opérateur ---
-if code_only "$REPO_ROOT/scripts/validate-target.sh" | grep -q -- '--root' \
-   || code_only "$REPO_ROOT/scripts/preflight.sh" | grep -q -- '--root'; then
+# Capture d'abord (le `$( )` de `code_only` — un `awk` externe — va à son
+# terme), grep ensuite sur la valeur déjà capturée (here-string) — jamais
+# `code_only "$f" | grep -q` : SIGPIPE possible sous `set -o pipefail` si un
+# grep -q aval sort tôt -> faux négatif sur ce garde-fou.
+_vt_fc="$(code_only "$REPO_ROOT/scripts/validate-target.sh" || true)"
+_pf_fc="$(code_only "$REPO_ROOT/scripts/preflight.sh" || true)"
+if grep -q -- '--root' <<<"$_vt_fc" || grep -q -- '--root' <<<"$_pf_fc"; then
   fail "les wrappers opérateurs mentionnent --root"
 else
   pass "les wrappers opérateurs n'exposent aucune option --root"
 fi
+# cas négatif synthétique (fichier temporaire, dépôt courant jamais touché) :
+# une option --root DOIT être détectée par cette même logique.
+_neg="$(gso_mktemp_dir gso-t12-neg)"
+trap 'rm -rf "$_neg"' EXIT
+printf '#!/usr/bin/env bash\ncase "$1" in --root) echo yes ;; esac\n' > "$_neg/w.sh"
+_neg_fc="$(code_only "$_neg/w.sh" || true)"
+grep -q -- '--root' <<<"$_neg_fc" \
+  && pass "cas négatif : une option --root synthétique est bien détectée par cette logique" \
+  || fail "cas négatif : une option --root synthétique n'est PAS détectée (faux négatif)"
 sp_block="$(awk '/for name in \("selector", "preflight"\):/{f=1} f{print} /args = ap\.parse_args/{f=0}' "$REPO_ROOT/scripts/lib/gso_validate.py")"
 if printf '%s\n' "$sp_block" | grep -q 'add_argument("site"' \
    && ! printf '%s\n' "$sp_block" | grep -qE 'add_argument\("--|add_argument\("-[a-z]'; then
@@ -69,12 +83,19 @@ fi
 # --- 4. Le chemin L3 (sélecteur + préflight) n'invoque aucun playbook ---
 # (deploy-site.yml existe à partir de L4 mais n'est appelé que par
 #  scripts/deploy.sh, APRÈS le sélecteur et le verrou.)
-if code_only "$REPO_ROOT/scripts/validate-target.sh" | grep -qE 'ansible-playbook|deploy-site' \
-   || code_only "$REPO_ROOT/scripts/preflight.sh" | grep -qE 'ansible-playbook|deploy-site'; then
+# Réutilise les captures $_vt_fc / $_pf_fc déjà prises au §2 (mêmes fichiers,
+# mêmes garanties SIGPIPE) — jamais `code_only "$f" | grep -q` en direct.
+if grep -qE 'ansible-playbook|deploy-site' <<<"$_vt_fc" \
+   || grep -qE 'ansible-playbook|deploy-site' <<<"$_pf_fc"; then
   fail "le sélecteur ou le préflight invoque un playbook"
 else
   pass "sélecteur et préflight n'invoquent aucun playbook (lecture seule)"
 fi
+# cas négatif synthétique : un appel ansible-playbook DOIT être détecté
+_neg2="ansible-playbook -i inv deploy-site.yml"
+grep -qE 'ansible-playbook|deploy-site' <<<"$_neg2" \
+  && pass "cas négatif : un appel ansible-playbook synthétique est bien détecté par cette logique" \
+  || fail "cas négatif : un appel ansible-playbook synthétique n'est PAS détecté (faux négatif)"
 
 # --- 5. Refus rapide, sans tentative de contact, sur cible inconnue ---
 start=$(date +%s)

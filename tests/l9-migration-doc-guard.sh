@@ -209,10 +209,31 @@ grep -qE 'SYNTH-L9' "$tmp/reg.out" "$tmp/vault.out" && fail "fuite d'un marqueur
 # --------------------------------------------------------------------------
 # 9. Aucun nouvel identifiant GSO-T ; aucun vault réel touché
 # --------------------------------------------------------------------------
-if git ls-files 'tests/gso-t*.sh' | grep -qE 'gso-t2[5-9]|gso-t[3-9][0-9]'; then
+# Capture D'ABORD (le `$( )` attend la fin normale de `git ls-files`), puis
+# recherche dans la valeur déjà capturée (here-string) — jamais
+# `git ls-files | grep -q` : sous `set -o pipefail`, un `grep -q` qui sort
+# dès la 1re ligne trouvée fait recevoir SIGPIPE à `git` -> pipeline en échec
+# ALORS QUE grep a trouvé la ligne -> faux négatif possible.
+_gsot_files="$(git ls-files 'tests/gso-t*.sh')"; _grc=$?
+if [ "$_grc" -ne 0 ]; then
+  fail "git ls-files a échoué (rc=$_grc) — impossible de vérifier les identifiants GSO-T"
+elif grep -qE 'gso-t2[5-9]|gso-t[3-9][0-9]' <<<"$_gsot_files"; then
   fail "un identifiant GSO-T hors contrat a été créé"
 else
   pass "aucun nouvel identifiant GSO-T (preuve L9 : l9-*.sh, non numérotée)"
+fi
+# --- cas négatif synthétique (copie temporaire, dépôt courant jamais touché) :
+# un identifiant hors contrat DOIT être refusé par la même logique corrigée.
+_neg="$tmp/sigpipe-neg-t9"; mkdir -p "$_neg/tests"
+git -C "$_neg" init -q
+: > "$_neg/tests/gso-t30-hors-contrat.sh"
+git -C "$_neg" -c user.email=t@t -c user.name=t add -A >/dev/null
+git -C "$_neg" -c user.email=t@t -c user.name=t commit -qm "cas négatif"
+_neg_files="$(git -C "$_neg" ls-files 'tests/gso-t*.sh')"
+if grep -qE 'gso-t2[5-9]|gso-t[3-9][0-9]' <<<"$_neg_files"; then
+  pass "cas négatif : un identifiant GSO-T hors contrat (gso-t30) est bien détecté par cette logique"
+else
+  fail "cas négatif : un identifiant GSO-T hors contrat n'est PAS détecté (faux négatif)"
 fi
 # motif de chemin home assemblé pour que ce test ne se signale pas à GSO-T24
 _hp="/${_h1:-ho}${_h2:-me}/"
