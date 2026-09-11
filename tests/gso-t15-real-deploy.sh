@@ -92,8 +92,30 @@ cleanup() {
 trap cleanup EXIT
 
 # --- 1. Aucune ressource ne préexiste sous ces noms exacts ---
-if docker ps -a --format '{{.Names}}' | grep -qx "$CTN" \
-   || docker network ls --format '{{.Name}}' | grep -qx "$NET"; then
+# Capture d'abord la sortie ENTIÈRE de `docker ps -a` / `docker network ls`
+# (le `$( )` va à son terme — sous `set -o pipefail`, hérité de
+# tests/lib/common.sh, un `producteur | grep -qx` direct ferait recevoir
+# SIGPIPE à `docker` dès que `grep` trouve la 1re ligne et sort -> pipeline
+# en échec (141) ALORS QUE la ressource existe bel et bien -> collision non
+# détectée). Le code retour du producteur reste distinct : sous `set -e`,
+# un `docker ps -a`/`docker network ls` qui échoue RÉELLEMENT (démon KO)
+# fait avorter le script ici, au lieu d'être confondu avec « nom absent ».
+_dps="$(docker ps -a --format '{{.Names}}')"
+_dnl="$(docker network ls --format '{{.Name}}')"
+# cas négatif synthétique (aucune ressource Docker réelle créée) : la
+# logique de détection (grep -qx / grep -q sur une sortie capturée) DOIT
+# trouver un nom cible même noyé parmi d'autres lignes, y compris en toute
+# fin de liste — le cas le plus exposé au SIGPIPE si le pipe direct était
+# conservé.
+_neg_names="$(printf 'other-container-1\nanother-one\n%s\n' "$CTN")"
+grep -qx "$CTN" <<<"$_neg_names" \
+  && pass "cas négatif : un nom de conteneur cible noyé en fin de liste synthétique est bien détecté" \
+  || fail "cas négatif : un nom de conteneur cible synthétique n'est PAS détecté (faux négatif)"
+_neg_prefix="$(printf 'unrelated\ngso-t15-orphan-abc123\n')"
+grep -q '^gso-t15-' <<<"$_neg_prefix" \
+  && pass "cas négatif : un nom gso-t15-* orphelin synthétique est bien détecté par le motif de préfixe" \
+  || fail "cas négatif : un nom gso-t15-* orphelin synthétique n'est PAS détecté (faux négatif)"
+if grep -qx "$CTN" <<<"$_dps" || grep -qx "$NET" <<<"$_dnl"; then
   fail "collision : une ressource porte déjà le nom $CTN ou $NET"
   finish
 fi
@@ -151,9 +173,15 @@ YML
 RUN="$T/run.log"          # journal À L'INTÉRIEUR de $T (nettoyé avec l'arbre)
 drc=0
 ( cd "$T" && timeout 300 bash scripts/deploy.sh "$SITE" ) > "$RUN" 2>&1 || drc=$?
-# on connaît maintenant les ressources potentiellement créées
-docker ps -a --format '{{.Names}}' | grep -qx "$CTN" && created_container="$CTN"
-docker network ls --format '{{.Name}}' | grep -qx "$NET" && created_network="$NET"
+# on connaît maintenant les ressources potentiellement créées.
+# Capture d'abord (même raison qu'au §1) : après un déploiement réussi,
+# $CTN EST présent -> c'est justement le cas où `grep -qx` sortirait tôt si
+# le pipe était direct, exposant `docker` à SIGPIPE et empêchant
+# l'enregistrement de la ressource pour le nettoyage borné.
+_dps="$(docker ps -a --format '{{.Names}}')"
+_dnl="$(docker network ls --format '{{.Name}}')"
+grep -qx "$CTN" <<<"$_dps" && created_container="$CTN"
+grep -qx "$NET" <<<"$_dnl" && created_network="$NET"
 
 if [ "$drc" -eq 0 ]; then
   pass "scripts/deploy.sh $SITE : rc=0"
@@ -234,10 +262,16 @@ fi
 cleanup
 trap - EXIT
 resid=0
-docker ps -a --format '{{.Names}}' | grep -qx "$CTN" && { fail "conteneur résiduel $CTN"; resid=1; }
-docker network ls --format '{{.Name}}' | grep -qx "$NET" && { fail "réseau résiduel $NET"; resid=1; }
-docker ps -a --format '{{.Names}}' | grep -q '^gso-t15-' && { fail "conteneur gso-t15-* résiduel"; resid=1; }
-docker network ls --format '{{.Name}}' | grep -q '^gso-t15-' && { fail "réseau gso-t15-* résiduel"; resid=1; }
+# Capture d'abord (même raison qu'au §1/§3) : un résidu réel est
+# précisément le cas où `grep -qx`/`grep -q` sortirait tôt, exposant
+# `docker` à SIGPIPE et masquant un résidu réellement présent (faux
+# succès sur ce garde-fou de non-régression).
+_dps="$(docker ps -a --format '{{.Names}}')"
+_dnl="$(docker network ls --format '{{.Name}}')"
+grep -qx "$CTN" <<<"$_dps" && { fail "conteneur résiduel $CTN"; resid=1; }
+grep -qx "$NET" <<<"$_dnl" && { fail "réseau résiduel $NET"; resid=1; }
+grep -q '^gso-t15-' <<<"$_dps" && { fail "conteneur gso-t15-* résiduel"; resid=1; }
+grep -q '^gso-t15-' <<<"$_dnl" && { fail "réseau gso-t15-* résiduel"; resid=1; }
 [ -e "$T" ] && { fail "répertoire temporaire résiduel $T"; resid=1; }
 [ -e "$RUN" ] && { fail "journal résiduel $RUN"; resid=1; }
 [ -e "$LOCK" ] && { fail "fichier de verrou résiduel $LOCK"; resid=1; }
