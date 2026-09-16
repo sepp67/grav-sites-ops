@@ -9,7 +9,11 @@
 - name: "Déployer / actualiser un site Grav"
   hosts: grav_servers
   gather_facts: false
-  become: false                 # privilèges minimaux ; le rôle escalade au besoin (GSO-REQ-097)
+  become: true                  # l'orchestrateur fournit become au rôle consommé (audit
+                                 # privilèges 2026-09) : sepp67.grav_site n'escalade jamais
+                                 # ses propres privilèges (voir son README "Prérequis") —
+                                 # le préflight LOCAL (délégué au contrôleur) reste non
+                                 # privilégié, explicitement (GSO-REQ-097, _shared/mutate.yml)
   any_errors_fatal: true        # une cible ambiguë tue le play avant toute invocation du rôle
   vars:
     _gso_intent: deploy          # fixé par le point d'entrée, jamais par l'opérateur

@@ -12,7 +12,8 @@
 - name: "Redémarrer un site Grav"
   hosts: grav_servers
   gather_facts: false
-  become: false
+  become: true                  # l'orchestrateur fournit become au rôle consommé — voir
+                                 # deploy-site.yml (même justification, audit privilèges 2026-09)
   any_errors_fatal: true
   vars:
     _gso_intent: restart         # fixé par le point d'entrée, jamais par l'opérateur

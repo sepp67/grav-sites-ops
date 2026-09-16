@@ -30,11 +30,29 @@
       - preflight
       - "{{ inventory_hostname }}"
   delegate_to: localhost
+  become: false               # GSO-REQ-097 : une tâche locale de préflight ne s'élève jamais,
+                               # même si le play appelant tourne désormais en become: true
+                               # (contrat v1.0.1, audit privilèges 2026-09)
   changed_when: false
   check_mode: false          # contrôle en lecture seule : doit s'exécuter même en --check (GSO-REQ-091)
   no_log: true               # ne jamais laisser fuir une valeur (GSO-REQ-024/092/101)
   register: _gso_preflight
   failed_when: _gso_preflight.rc != 0
+
+# Pas de préflight DISTANT (SSH réel) ajouté ici (envisagé — audit
+# privilèges 2026-09, §4.2/§5) : une tentative a été écartée après avoir
+# cassé GSO-T13/GSO-T14, qui prouvent le chemin opérateur réel avec une
+# DOUBLURE du rôle (GSO-REQ-087) sans jamais toucher le réseau — c'est
+# précisément parce qu'AUCUNE tâche de ce fichier ne contacte la cible que
+# la doublure peut se substituer uniquement à `sepp67.grav_site` sans
+# adapter les fixtures. Un contrôle distant qui vivrait ici (hors du rôle,
+# donc jamais substitué par la doublure) romprait cette isolation pour
+# toute cible non joignable pendant les tests — y compris légitimement
+# (GSO-T19/T20 réutilisent volontairement une IP non routable pour prouver
+# la classification UNREACHABLE). Le diagnostic actionnable en cas de
+# become manquant est fourni par tasks/privilege_guard.yml, tôt dans
+# sepp67.grav_site (import juste après assert.yml) — lui correctement
+# substitué par la doublure dans ces mêmes tests.
 
 - name: "Traduction fermée : registre + vault + intention -> interface publique du rôle v2.0.0"
   ansible.builtin.include_tasks: translate.yml
