@@ -157,20 +157,46 @@
         http_status: "{{ _gso_http_status }}"
       real_error: "{{ _gso_real_error }}"
   vars:
-    # Reconnaît aussi un échec de `become` lui-même (ex. sudo NOPASSWD non
-    # configuré pour le compte de contrôle) — sans quoi ce cas se
-    # confondait avec "conteneur absent" (NOT_DEPLOYED) plutôt que d'être
-    # signalé comme un état Docker indéterminable (audit privilèges,
-    # test d'acceptation réel 2026-09-16).
+    # Détecte un échec d'EXÉCUTION DU MODULE lui-même — distinct d'un échec
+    # "docker inspect" normal (audit privilèges, test d'acceptation réel
+    # 2026-09-16 ; précision sémantique du 2026-09-16 : voir plus bas). Sondé
+    # empiriquement sur les 4 formes possibles de _gso_inspect :
+    #   - succès              : rc=0, msg="", stderr="" ;
+    #   - conteneur absent    : rc!=0, msg="non-zero return code",
+    #                           stdout/stderr NORMALEMENT peuplés ;
+    #   - docker indisponible : rc!=0, msg="non-zero return code",
+    #                           stderr="Cannot connect to the Docker
+    #                           daemon..." ;
+    #   - échec du module     : rc!=0, msg="MODULE FAILURE\n...", AUCUN
+    #                           stdout/stderr — seulement module_stdout/
+    #                           module_stderr.
+    # Un échec de `become` (ex. sudo sans mot de passe non interactif) EST
+    # une cause CONCRÈTE et confirmée de cette 4e forme — mais PAS la
+    # SEULE : Ansible rapporte "MODULE FAILURE" pour tout échec qui
+    # empêche le module de produire un résultat exploitable (interpréteur
+    # absent sur la cible, transfert du script échoué, etc.), pas
+    # seulement un défaut de privilège — l'affirmation inverse serait trop
+    # forte. Détecter cette forme reste utile quelle qu'en soit la cause :
+    # sans elle, ce 4e cas n'était reconnu par aucun test de motif sur
+    # `stderr` (toujours vide ici) et retombait dans "conteneur absent" ->
+    # NOT_DEPLOYED, un verdict FAUX dans tous les cas : l'existence réelle
+    # du conteneur est INCONNUE, pas absente. `msg` contient littéralement
+    # la chaîne fixe "MODULE FAILURE" pour CETTE forme d'échec uniquement
+    # (jamais pour un rc non nul "normal", confirmé empiriquement) : c'est
+    # un signal de DÉTECTION fiable, sans avoir à interpréter le contenu
+    # de module_stderr — mais il ne renseigne PAS sur la cause précise.
+    # Ni `msg`, ni `module_stderr`, ni `stderr` ne sont jamais recopiés
+    # dans le rapport (GSO-REQ-123) — uniquement une raison normalisée et
+    # générique, produite par le classificateur.
+    _gso_module_failure: "{{ (_gso_inspect.msg | default('')) is search('MODULE FAILURE') }}"
     _gso_real_error: >-
       {{ 'unreachable' if (_gso_reach is unreachable)
+         else ('module_failure' if _gso_module_failure
          else ('docker_unavailable'
                if ((_gso_inspect.rc | default(0)) != 0
                    and ('Cannot connect to the Docker daemon' in (_gso_inspect.stderr | default(''))
-                        or 'permission denied while trying to connect' in (_gso_inspect.stderr | default(''))
-                        or 'a password is required' in (_gso_inspect.stderr | default(''))
-                        or 'sudo:' in (_gso_inspect.stderr | default(''))))
-               else '') }}
+                        or 'permission denied while trying to connect' in (_gso_inspect.stderr | default(''))))
+               else '')) }}
 
 - name: "Classifier la dérive (fonction pure, sur le contrôleur — GSO-REQ-118/121)"
   ansible.builtin.command:

@@ -112,6 +112,17 @@ def classify(data: dict) -> dict:
     if applied_error in ("unreadable", "incoherent"):
         reasons.append(f".deployed_state.yml {applied_error}")
         return result("UNKNOWN")
+    if real_error == "module_failure":
+        # Échec d'exécution du module lui-même (Ansible rapporte
+        # "MODULE FAILURE") — distinct d'un Docker réellement injoignable :
+        # l'existence du conteneur est INCONNUE, jamais "absente" (audit
+        # privilèges, 2026-09-16 ; précision sémantique 2026-09-16). Un
+        # échec de `become` est une cause CONCRÈTE possible, mais pas la
+        # seule cause de cette forme — la raison reste donc volontairement
+        # générique. Reste UNKNOWN (taxonomie inchangée) ; seule la raison
+        # est plus précise qu'un simple "conteneur absent".
+        reasons.append("exécution du module impossible sur la cible")
+        return result("UNKNOWN")
     if real_error in ("docker_unavailable", "ambiguous"):
         reasons.append(f"état réel indéterminable ({real_error})")
         return result("UNKNOWN")

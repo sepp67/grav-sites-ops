@@ -105,12 +105,16 @@ fi
 # --------------------------------------------------------------------------
 # 3. check-all de bout en bout (fausse CLI docker, lecture seule)
 # --------------------------------------------------------------------------
-gso_fake_docker_into "$tmp"
-export PATH="$tmp/fakebin:$PATH"
-# GSO_TEST_DOCKER_BIN : voir GSO-T19 — become: true sur la tâche "docker
-# inspect" (test d'acceptation réel 2026-09-16) implique un chemin absolu,
-# le préfixage PATH seul ne suffit plus sous sudo (secure_path).
-export GSO_TEST_DOCKER_BIN="$tmp/fakebin/docker"
+# Pas de fausse CLI ni de PATH partagés ici — voir GSO-T19 : `sudo`
+# (become: true, nécessaire) réinitialise PATH (secure_path) et
+# l'environnement (env_reset), donc chaque arbre créé par mk_parc()
+# installe sa PROPRE fausse CLI autonome (gso_fake_docker_into "$T"),
+# passée via GSO_TEST_DOCKER_BIN (chemin absolu, lu sur le CONTRÔLEUR par
+# _shared/observe.yml). become: true lui-même reste réel
+# (_shared/observe.yml inchangé) : chaque arbre installe aussi un faux
+# sudo autonome (gso_fake_sudo_into "$T"), déclaré UNIQUEMENT dans
+# l'inventaire SYNTHÉTIQUE via `ansible_become_exe` — aucun fichier de
+# production modifié, voir GSO-T19 pour le contrat exact.
 
 mk_parc() {  # <mode: ok|drift|broken> -> echo path
   local mode="$1"
@@ -118,13 +122,21 @@ mk_parc() {  # <mode: ok|drift|broken> -> echo path
   l4_tmptree l3-prod-ok "$T"
   gso_spy_role_into "$T"
   mkdir -p "$T/sites/grav-alpha" "$T/sites/grav-beta" "$T/fakedocker"
+  gso_fake_docker_into "$T"       # fausse CLI docker autonome, propre à CET arbre
+  gso_fake_sudo_into "$T"         # faux sudo autonome, propre à CET arbre
   cat > "$T/inventories/production/hosts.yml" <<YML
 all:
   children:
     grav_servers:
       hosts:
-        grav-alpha: {ansible_connection: local, ansible_host: 127.0.0.1}
-        grav-beta: {ansible_connection: local, ansible_host: 127.0.0.1}
+        grav-alpha:
+          ansible_connection: local
+          ansible_host: 127.0.0.1
+          ansible_become_exe: "$T/fakebin/sudo"
+        grav-beta:
+          ansible_connection: local
+          ansible_host: 127.0.0.1
+          ansible_become_exe: "$T/fakebin/sudo"
 YML
   cat > "$T/inventories/production/group_vars/all/grav_sites.yml" <<YML
 grav_sites:
@@ -182,7 +194,7 @@ YML
 
 run_all() {  # <tree> -> "<rc> <logfile>"
   local T="$1" rc=0
-  ( cd "$T" && FAKE_DOCKER_DIR="$T/fakedocker" bash scripts/check-all.sh ) > "$T.log" 2>&1 || rc=$?
+  ( cd "$T" && GSO_TEST_DOCKER_BIN="$T/fakebin/docker" bash scripts/check-all.sh ) > "$T.log" 2>&1 || rc=$?
   echo "$rc $T.log"
 }
 
@@ -195,6 +207,11 @@ grep -q 'grav-alpha : IN_SYNC' "$log" && grep -q 'grav-beta : IN_SYNC' "$log" \
 grep -qE 'SYNTH-T20-[AB]-PW' "$log" && fail "fuite d'une valeur secrète" || pass "aucune valeur secrète dans la sortie"
 [ ! -e "$T/roles/sepp67.grav_site/_calls.log" ] && pass "rôle jamais invoqué par check-all" || fail "check-all a invoqué le rôle"
 grep -q 'FAKE-DOCKER-REFUS' "$log" && fail "check-all a tenté une sous-commande docker mutante" || pass "check-all : aucune sous-commande docker mutante"
+[ -s "$T/fakebin/.sudo-calls.log" ] && pass "le faux sudo a été appelé (check-all)" || fail "le faux sudo n'a pas été appelé (check-all)"
+grep -q '^user=root ' "$T/fakebin/.sudo-calls.log" \
+  && pass "check-all : docker inspect reste exécuté avec become (utilisateur cible root)" \
+  || fail "become non engagé dans check-all"
+[ -s "$T/fakedocker/.calls.log" ] && pass "le faux Docker autonome a été appelé (check-all)" || fail "le faux Docker autonome n'a pas été appelé (check-all)"
 
 # --- 3b. non mutation : mtime des .deployed_state.yml inchangés ---
 a1="$(stat -c %Y "$T/sites/grav-alpha/.deployed_state.yml")"; b1="$(stat -c %Y "$T/sites/grav-beta/.deployed_state.yml")"

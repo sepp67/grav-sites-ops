@@ -66,6 +66,8 @@ expect "état appliqué illisible" UNKNOWN \
   "{\"desired\":{$D},\"applied\":null,\"applied_error\":\"unreadable\",\"real\":{\"reachable\":true,\"container_exists\":true,\"container_image\":\"r/i:1.0.0\",\"running\":true,\"health\":\"healthy\"}}"
 expect "docker indisponible" UNKNOWN \
   "{\"desired\":{$D},\"applied\":{\"effective_reference\":\"r/i:1.0.0\"},\"real\":{\"reachable\":true},\"real_error\":\"docker_unavailable\"}"
+expect "échec d'exécution du module (module_failure)" UNKNOWN \
+  "{\"desired\":{$D},\"applied\":{\"effective_reference\":\"r/i:1.0.0\"},\"real\":{\"reachable\":true},\"real_error\":\"module_failure\"}"
 expect "VM injoignable" UNREACHABLE \
   "{\"desired\":{$D},\"applied\":null,\"real\":{\"reachable\":false},\"real_error\":\"unreachable\"}"
 
@@ -78,32 +80,49 @@ grep -q 'SECRET-XYZ' "$tmp/cout" && fail "classificateur : fuite d'une valeur" |
 # --------------------------------------------------------------------------
 # Partie B — check-site.yml de bout en bout (fausse CLI docker, lecture seule)
 # --------------------------------------------------------------------------
-gso_fake_docker_into "$tmp"
-export PATH="$tmp/fakebin:$PATH"
-# GSO_TEST_DOCKER_BIN (chemin ABSOLU, lu par _shared/observe.yml via
-# lookup(env) sur le contrôleur) : la tâche "docker inspect" tourne
-# désormais sous become: true (test d'acceptation réel 2026-09-16, VM
-# Proxmox dédiée) — sudo réinitialise PATH via secure_path, donc le
-# préfixage PATH ci-dessus ne suffit plus seul à faire trouver la fausse
-# CLI sous become. Un chemin absolu n'a pas ce problème.
-export GSO_TEST_DOCKER_BIN="$tmp/fakebin/docker"
+# Pas de fausse CLI ni de PATH partagés ici : la tâche réelle "docker
+# inspect" tourne sous become: true (nécessaire, prouvé sur VM réelle) et
+# `sudo` réinitialise à la fois PATH (secure_path) et l'environnement
+# (env_reset) avant d'exécuter la commande — ni un préfixage PATH, ni une
+# variable d'environnement (FAKE_DOCKER_DIR, FAKE_DOCKER_UNAVAILABLE) ne
+# survit à la traversée de `sudo`. Chaque arbre créé par mk_tree() installe
+# donc sa PROPRE fausse CLI autonome (gso_fake_docker_into "$T", voir
+# tests/lib/common.sh) : chemin absolu passé via GSO_TEST_DOCKER_BIN,
+# lu par _shared/observe.yml sur le CONTRÔLEUR uniquement (même mécanisme
+# que GSO_SPY_OUTPUT) — jamais transmis à la cible ni à travers sudo.
+#
+# become: true lui-même reste RÉEL (playbooks/_shared/observe.yml
+# inchangé) : ce sandbox n'a pas de sudo non interactif pour le prouver de
+# bout en bout, donc chaque arbre installe aussi un FAUX sudo autonome
+# (gso_fake_sudo_into "$T") déclaré UNIQUEMENT dans l'inventaire
+# SYNTHÉTIQUE de cet arbre via `ansible_become_exe` (variable de connexion
+# native d'Ansible — aucun fichier de production modifié). Ce faux sudo
+# n'élève aucun privilège réel : il valide juste la forme des arguments
+# attendus du plugin become sudo puis exécute la commande finale telle
+# quelle (voir tests/lib/common.sh pour le contrat exact sondé).
 
 mk_tree() {  # -> echo path
   local T="$tmp/tree-$RANDOM"
   l4_tmptree l3-prod-ok "$T"
   gso_spy_role_into "$T"          # doublure : si un include_role survenait, on le verrait
   mkdir -p "$T/sites/grav-alpha" "$T/fakedocker"
+  gso_fake_docker_into "$T"       # fausse CLI docker autonome, propre à CET arbre
+  gso_fake_sudo_into "$T"         # faux sudo autonome, propre à CET arbre (become réel simulé, pas de privilège réel)
   cat > "$T/inventories/production/hosts.yml" <<YML
 all:
   children:
     grav_servers:
       hosts:
-        grav-alpha: {ansible_connection: local, ansible_host: 127.0.0.1}
+        grav-alpha:
+          ansible_connection: local
+          ansible_host: 127.0.0.1
+          ansible_become_exe: "$T/fakebin/sudo"
         grav-unreach:
           ansible_connection: ssh
           ansible_host: 127.0.0.1
           ansible_port: 1
           ansible_ssh_common_args: "-o ConnectTimeout=2 -o BatchMode=yes -o StrictHostKeyChecking=no"
+          ansible_become_exe: "$T/fakebin/sudo"
 YML
   cat > "$T/inventories/production/group_vars/all/grav_sites.yml" <<YML
 grav_sites:
@@ -152,7 +171,7 @@ YML
 
 check() {  # <tree> <site> -> "<rc> <logfile>"
   local T="$1" site="$2" rc=0
-  ( cd "$T" && FAKE_DOCKER_DIR="$T/fakedocker" bash scripts/check-site.sh "$site" ) > "$T.log.$site" 2>&1 || rc=$?
+  ( cd "$T" && GSO_TEST_DOCKER_BIN="$T/fakebin/docker" bash scripts/check-site.sh "$site" ) > "$T.log.$site" 2>&1 || rc=$?
   echo "$rc $T.log.$site"
 }
 
@@ -164,6 +183,13 @@ grep -q 'IN_SYNC' "$log" && pass "verdict IN_SYNC affiché" || fail "verdict abs
 grep -qE 'désiré=reg.invalid/alpha:1.0.0 .*appliqué=reg.invalid/alpha:1.0.0 .*réel=reg.invalid/alpha:1.0.0' "$log" \
   && pass "les trois niveaux (désiré/appliqué/réel) sont distingués (GSO-REQ-118)" || fail "trois niveaux non distingués"
 grep -qE 'SYNTH-T19-(ADMIN|OTHER)-PW' "$log" && fail "fuite d'une valeur secrète" || pass "aucune valeur secrète (vault) dans la sortie"
+
+# --- B1b. preuves d'engagement réel de become (mission A.6) ---
+[ -s "$T/fakebin/.sudo-calls.log" ] && pass "le faux sudo a été appelé" || fail "le faux sudo n'a pas été appelé"
+grep -q '^user=root ' "$T/fakebin/.sudo-calls.log" \
+  && pass "la tâche 'docker inspect' reste exécutée avec become (utilisateur cible root)" \
+  || fail "become non engagé (utilisateur cible différent de root) : $(cat "$T/fakebin/.sudo-calls.log" 2>/dev/null)"
+[ -s "$T/fakedocker/.calls.log" ] && pass "le faux Docker autonome a été appelé" || fail "le faux Docker autonome n'a pas été appelé"
 
 # --- B2. non mutant : aucun fichier du rôle touché, aucune sous-commande docker mutante ---
 before="$(stat -c '%Y %s' "$T/sites/grav-alpha/.deployed_state.yml")"
@@ -197,8 +223,35 @@ read -r rc log < <(check "$T" grav-alpha)
 
 # --- B6. docker indisponible -> UNKNOWN ---
 T="$(mk_tree)"
-rc=0; ( cd "$T" && FAKE_DOCKER_DIR="$T/fakedocker" FAKE_DOCKER_UNAVAILABLE=1 bash scripts/check-site.sh grav-alpha ) > "$T.log.dk" 2>&1 || rc=$?
+touch "$T/fakedocker/.unavailable"   # marqueur local à l'arbre — lu par la doublure elle-même, jamais via l'environnement
+rc=0; ( cd "$T" && GSO_TEST_DOCKER_BIN="$T/fakebin/docker" bash scripts/check-site.sh grav-alpha ) > "$T.log.dk" 2>&1 || rc=$?
 { [ "$rc" != 0 ] && grep -q 'UNKNOWN' "$T.log.dk"; } && pass "docker indisponible -> UNKNOWN" || { sed 's/^/   | /' "$T.log.dk"|tail -8; fail "UNKNOWN attendu (rc=$rc)"; }
+
+# --- B6b. échec d'exécution du module (MODULE FAILURE) -> UNKNOWN, sans fuite ---
+# Le faux sudo de cet arbre refuse délibérément l'élévation (marqueur
+# .deny-become) : Ansible rapporte alors l'échec sous la forme
+# "MODULE FAILURE" (msg) + module_stderr, jamais stdout/stderr normaux.
+# C'est UN exemple CONCRET (become indisponible) produisant cette forme —
+# pas la preuve que tout "MODULE FAILURE" est lié aux privilèges : Ansible
+# rapporte la même forme pour tout échec qui empêche le module de
+# s'exécuter (interpréteur absent, transfert du script échoué, etc.). Le
+# verdict et la raison publiée restent donc volontairement génériques
+# ("exécution du module impossible sur la cible", jamais "become" ni
+# "privilège"). Avant la correction B, ce cas était classé NOT_DEPLOYED
+# (faux : l'existence du conteneur est en réalité INCONNUE).
+T="$(mk_tree)"
+touch "$T/fakebin/.deny-become"
+read -r rc log < <(check "$T" grav-alpha)
+{ [ "$rc" != 0 ] && grep -q 'UNKNOWN' "$log"; } && pass "échec d'exécution du module (MODULE FAILURE) -> UNKNOWN" || { sed 's/^/   | /' "$log"|tail -10; fail "UNKNOWN attendu pour échec de module (rc=$rc)"; }
+grep -qE 'elevation refusee|MODULE FAILURE|module_stderr' "$log" \
+  && fail "contenu sensible (message du faux sudo / module_stderr / MODULE FAILURE) affiché dans le rapport" \
+  || pass "aucun contenu de module_stderr/msg affiché (GSO-REQ-123)"
+
+# --- B6c. docker inspect normal, conteneur réellement absent (aucun become en cause) -> NOT_DEPLOYED inchangé (mission B.7) ---
+T="$(mk_tree)"
+rm -f "$T/fakedocker/gso-t19-alpha.json"
+read -r rc log < <(check "$T" grav-alpha)
+{ [ "$rc" != 0 ] && grep -q 'NOT_DEPLOYED' "$log"; } && pass "conteneur normalement absent -> NOT_DEPLOYED (comportement inchangé)" || { sed 's/^/   | /' "$log"|tail -10; fail "NOT_DEPLOYED attendu pour absence normale (rc=$rc)"; }
 
 # --- B7. VM simulée injoignable -> UNREACHABLE ---
 T="$(mk_tree)"
