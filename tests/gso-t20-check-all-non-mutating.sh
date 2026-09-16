@@ -107,6 +107,10 @@ fi
 # --------------------------------------------------------------------------
 gso_fake_docker_into "$tmp"
 export PATH="$tmp/fakebin:$PATH"
+# GSO_TEST_DOCKER_BIN : voir GSO-T19 — become: true sur la tâche "docker
+# inspect" (test d'acceptation réel 2026-09-16) implique un chemin absolu,
+# le préfixage PATH seul ne suffit plus sous sudo (secure_path).
+export GSO_TEST_DOCKER_BIN="$tmp/fakebin/docker"
 
 mk_parc() {  # <mode: ok|drift|broken> -> echo path
   local mode="$1"

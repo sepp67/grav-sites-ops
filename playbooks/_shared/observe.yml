@@ -61,26 +61,36 @@
       check_mode: false
       failed_when: false
 
-    # become: true envisagé ici (audit privilèges 2026-09) puis écarté :
-    # `sudo` réinitialise PATH par défaut (secure_path), donc un `docker`
-    # de test placé sur PATH (harnais GSO-T19/GSO-T20, fausse CLI) ne
-    # serait plus trouvé sous become — cassant ces tests sans gain réel en
-    # production (même limite : un `docker` non standard installé par
-    # l'opérateur deviendrait, lui aussi, injoignable sous sudo). Sans
-    # appartenance du compte au groupe `docker` (le contrat retenu), cette
-    # lecture échoue avec "permission denied" — DÉJÀ reconnu et classifié
-    # gracieusement par `_gso_real_error` ci-dessous ("docker_unavailable"
-    # -> UNKNOWN), jamais un crash. check-site/check-all restent donc
-    # non privilégiés PARTOUT (GSO-REQ-090) ; un opérateur qui a besoin
-    # d'un état Docker garanti dispose de `deploy`/`restart`/`stop`
-    # (`become: true` au niveau du play, healthcheck intégral du rôle).
+    # become: true (test d'acceptation réel 2026-09-16, VM Proxmox dédiée) :
+    # un `become: false` ici rendait cette lecture systématiquement
+    # "permission denied" sans appartenance au groupe `docker` (le contrat
+    # retenu) — vérifié sur une VM réelle, `check`/`check-all` rendaient
+    # UNKNOWN au lieu de l'état réel, à chaque appel. Ce n'est pas une
+    # dégradation gracieuse acceptable : c'est la fonction même de ces
+    # deux commandes qui ne marchait jamais pour le compte technique
+    # réellement utilisé.
+    #
+    # `_gso_docker_cmd` reste "docker" (résolu via PATH/secure_path sous
+    # `become`, donc toujours le vrai binaire en production) sauf si la
+    # variable d'environnement GSO_TEST_DOCKER_BIN est positionnée sur le
+    # CONTRÔLEUR — chemin ABSOLU vers une fausse CLI de test (harnais
+    # GSO-T19/GSO-T20), pour ne pas dépendre de PATH sous sudo (`sudo`
+    # réinitialise PATH via `secure_path`, confirmé empiriquement : un
+    # `docker` de test simplement préfixé au PATH n'est jamais trouvé sous
+    # `become`, un chemin absolu si). `lookup(env)` s'évalue toujours sur
+    # le contrôleur, jamais sur la cible — cohérent avec GSO_SPY_OUTPUT
+    # (tests/lib/spy-role) qui utilise déjà ce même mécanisme.
     - name: "État réel — docker inspect du conteneur attendu (lecture seule — GSO-REQ-090)"
       ansible.builtin.command:
-        argv: ["docker", "inspect", "{{ _gso_desired.container_name }}"]
+        argv: ["{{ _gso_docker_cmd }}", "inspect", "{{ _gso_desired.container_name }}"]
+      become: true
       register: _gso_inspect
       changed_when: false
       check_mode: false
       failed_when: false
+      vars:
+        _gso_docker_cmd: >-
+          {{ lookup('ansible.builtin.env', 'GSO_TEST_DOCKER_BIN') | default('docker', true) }}
 
     - name: "État réel — endpoint HTTP local (corroboration ; jamais bloquant)"
       ansible.builtin.uri:
@@ -147,12 +157,19 @@
         http_status: "{{ _gso_http_status }}"
       real_error: "{{ _gso_real_error }}"
   vars:
+    # Reconnaît aussi un échec de `become` lui-même (ex. sudo NOPASSWD non
+    # configuré pour le compte de contrôle) — sans quoi ce cas se
+    # confondait avec "conteneur absent" (NOT_DEPLOYED) plutôt que d'être
+    # signalé comme un état Docker indéterminable (audit privilèges,
+    # test d'acceptation réel 2026-09-16).
     _gso_real_error: >-
       {{ 'unreachable' if (_gso_reach is unreachable)
          else ('docker_unavailable'
                if ((_gso_inspect.rc | default(0)) != 0
                    and ('Cannot connect to the Docker daemon' in (_gso_inspect.stderr | default(''))
-                        or 'permission denied while trying to connect' in (_gso_inspect.stderr | default(''))))
+                        or 'permission denied while trying to connect' in (_gso_inspect.stderr | default(''))
+                        or 'a password is required' in (_gso_inspect.stderr | default(''))
+                        or 'sudo:' in (_gso_inspect.stderr | default(''))))
                else '') }}
 
 - name: "Classifier la dérive (fonction pure, sur le contrôleur — GSO-REQ-118/121)"

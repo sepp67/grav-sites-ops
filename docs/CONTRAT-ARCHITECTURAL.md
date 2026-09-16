@@ -1435,6 +1435,26 @@ d'appartenance au groupe `docker` — les autres lectures de cette séquence
 nécessite qu'un droit de traversée de répertoire, jamais la lecture de son
 contenu `0600`) n'en ont jamais eu besoin.
 
+**Historique de cette décision (test d'acceptation réel, VM Proxmox
+dédiée, 2026-09-16) :** un `become: true` scopé ici avait d'abord été
+retiré, par crainte que `sudo` (qui réinitialise `PATH` via `secure_path`)
+rende injoignable la fausse CLI Docker utilisée par GSO-T19/GSO-T20. Un
+déploiement réel sur une VM dédiée a ensuite démontré que **sans**
+`become` ici, `check`/`check-all` ne peuvent JAMAIS observer l'état réel
+du conteneur pour un compte sans groupe `docker` — `docker_unavailable`
+→ `UNKNOWN` n'est alors pas une dégradation gracieuse occasionnelle, c'est
+le résultat systématique, ce qui vide ces deux commandes de leur fonction.
+`become: true` a donc été restauré. La crainte initiale sur `secure_path`
+a été confirmée empiriquement sur la même VM (`sudo docker` résout
+toujours `/usr/bin/docker`, jamais un `docker` simplement préfixé au
+`PATH`) — la tâche accepte donc un chemin de binaire Docker alternatif via
+la variable d'environnement `GSO_TEST_DOCKER_BIN` (lue sur le
+contrôleur via `lookup(env)`, jamais sur la cible — même mécanisme que
+`GSO_SPY_OUTPUT` dans `tests/lib/spy-role`), que GSO-T19/GSO-T20
+positionnent sur le chemin ABSOLU de leur fausse CLI pour rester
+joignable sous `sudo`. En production, la variable est absente : le
+binaire reste `docker`, résolu par `secure_path` vers le vrai binaire.
+
 ### 14.5 Protection du vault
 
 Le `.gitignore` doit couvrir le vault réel, ses sauvegardes temporaires et les fichiers d'édition susceptibles de contenir du texte déchiffré. Les permissions locales attendues doivent être documentées.

@@ -80,6 +80,13 @@ grep -q 'SECRET-XYZ' "$tmp/cout" && fail "classificateur : fuite d'une valeur" |
 # --------------------------------------------------------------------------
 gso_fake_docker_into "$tmp"
 export PATH="$tmp/fakebin:$PATH"
+# GSO_TEST_DOCKER_BIN (chemin ABSOLU, lu par _shared/observe.yml via
+# lookup(env) sur le contrôleur) : la tâche "docker inspect" tourne
+# désormais sous become: true (test d'acceptation réel 2026-09-16, VM
+# Proxmox dédiée) — sudo réinitialise PATH via secure_path, donc le
+# préfixage PATH ci-dessus ne suffit plus seul à faire trouver la fausse
+# CLI sous become. Un chemin absolu n'a pas ce problème.
+export GSO_TEST_DOCKER_BIN="$tmp/fakebin/docker"
 
 mk_tree() {  # -> echo path
   local T="$tmp/tree-$RANDOM"

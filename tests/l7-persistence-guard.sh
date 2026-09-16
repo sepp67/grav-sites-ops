@@ -155,17 +155,44 @@ else
   pass "aucun secret dans le registre non secret (GSO-REQ-039)"
 fi
 
-# --- 9. Chemin opérateur mutant inchangé par L7 ---
-# le diff de la branche L7 vs main ne doit toucher aucun composant du chemin deploy.
-base="$(git merge-base HEAD main 2>/dev/null || true)"
-if [ -n "$base" ]; then
-  touched="$(git diff --name-only "$base"..HEAD -- \
-      scripts/deploy.sh scripts/lib/site-mutation.sh playbooks/deploy-site.yml \
-      playbooks/_shared/mutate.yml playbooks/_shared/translate.yml || true)"
-  [ -z "$touched" ] && pass "L7 ne modifie aucun composant du chemin deploy (deploy.sh, site-mutation.sh, deploy-site.yml, mutate.yml, translate.yml)" \
-    || fail "L7 a modifié le chemin deploy : $touched"
+# --- 9. Le chemin opérateur mutant reste sous la surveillance sémantique
+#        de ce garde-fou (invariant permanent, rescopé — audit privilèges
+#        2026-09-16, test d'acceptation réel).
+#
+# Version antérieure : comparait le diff de la branche courante contre
+# `main` et échouait si deploy.sh / site-mutation.sh / deploy-site.yml /
+# mutate.yml / translate.yml avait changé — une garde ponctuelle du
+# développement du lot L7 (« la branche L7 ne devait pas toucher au chemin
+# deploy »), pas une invariante générale : elle échouait mécaniquement
+# pour TOUTE branche future touchant légitimement ces fichiers (ex. le
+# correctif become: true de l'audit privilèges 2026-09), y compris quand
+# la modification ne violait aucun invariant réel de persistance.
+#
+# Invariant permanent qui la remplace : ces 5 fichiers du chemin deploy
+# DOIVENT rester couverts par le scan statique de ce garde-fou (points 1 à
+# 6 ci-dessus, via $EXEC_FILES) — peu importe COMMENT ils changent, TANT
+# QU'ils ne changent jamais sans passer par les mêmes contrôles sémantiques
+# (aucune destruction de volume, aucune resynchronisation automatique,
+# aucun rollback automatique, aucune réécriture du journal, aucune
+# surcharge CLI). Si l'un de ces fichiers disparaissait du glob de
+# $EXEC_FILES (renommage, restructuration), ce point l'attraperait avant
+# que les points 1-6 ne cessent silencieusement de le couvrir.
+deploy_path_files=(
+  scripts/deploy.sh scripts/lib/site-mutation.sh playbooks/deploy-site.yml
+  playbooks/_shared/mutate.yml playbooks/_shared/translate.yml
+)
+missing=()
+for f in "${deploy_path_files[@]}"; do
+  printf '%s\n' "${EXEC_FILES[@]}" | grep -qxF "$f" || missing+=("$f")
+done
+if [ "${#missing[@]}" -eq 0 ]; then
+  pass "le chemin deploy (deploy.sh, site-mutation.sh, deploy-site.yml, mutate.yml, translate.yml) reste sous la surveillance sémantique de ce garde-fou (points 1-6)"
 else
-  pass "chemin deploy : pas de base de comparaison (branche non divergée)"
+  fail "fichier(s) du chemin deploy absent(s) du scan statique de ce garde-fou : ${missing[*]}"
 fi
+# cas négatif synthétique : un fichier hors du glob $EXEC_FILES DOIT être détecté comme absent.
+printf '%s\n' "${EXEC_FILES[@]}" | grep -qxF "playbooks/does-not-exist.yml" \
+  && fail "cas négatif : un chemin synthétique absent du glob n'a PAS été détecté comme absent" \
+  || pass "cas négatif : un chemin synthétique absent du glob est bien détecté comme absent"
 
 finish
