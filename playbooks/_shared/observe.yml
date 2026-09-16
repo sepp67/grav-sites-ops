@@ -61,6 +61,19 @@
       check_mode: false
       failed_when: false
 
+    # become: true envisagé ici (audit privilèges 2026-09) puis écarté :
+    # `sudo` réinitialise PATH par défaut (secure_path), donc un `docker`
+    # de test placé sur PATH (harnais GSO-T19/GSO-T20, fausse CLI) ne
+    # serait plus trouvé sous become — cassant ces tests sans gain réel en
+    # production (même limite : un `docker` non standard installé par
+    # l'opérateur deviendrait, lui aussi, injoignable sous sudo). Sans
+    # appartenance du compte au groupe `docker` (le contrat retenu), cette
+    # lecture échoue avec "permission denied" — DÉJÀ reconnu et classifié
+    # gracieusement par `_gso_real_error` ci-dessous ("docker_unavailable"
+    # -> UNKNOWN), jamais un crash. check-site/check-all restent donc
+    # non privilégiés PARTOUT (GSO-REQ-090) ; un opérateur qui a besoin
+    # d'un état Docker garanti dispose de `deploy`/`restart`/`stop`
+    # (`become: true` au niveau du play, healthcheck intégral du rôle).
     - name: "État réel — docker inspect du conteneur attendu (lecture seule — GSO-REQ-090)"
       ansible.builtin.command:
         argv: ["docker", "inspect", "{{ _gso_desired.container_name }}"]

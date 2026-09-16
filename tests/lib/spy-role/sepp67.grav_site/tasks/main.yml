@@ -4,6 +4,15 @@
 # playbook (GSO-T13, GSO-T14, GSO-T16). Ne contacte aucune machine, ne crée
 # aucun conteneur. Les chemins de sortie viennent de l'environnement.
 
+
+# become: false explicite (audit privilèges 2026-09) : les deux tâches
+# ci-dessous écrivent sur le CONTRÔLEUR (delegate_to: localhost, dans un
+# répertoire temporaire déjà possédé par l'utilisateur qui lance les
+# tests) — le vrai `sepp67.grav_site` ne délègue jamais rien à localhost,
+# donc les playbooks appelants (become: true au niveau du play, depuis cet
+# audit) n'ont jamais eu besoin de le prévoir pour cette doublure. Sans cet
+# override, ces tâches hériteraient de become: true et échoueraient sur
+# tout environnement sans sudo non interactif — y compris en CI.
 - name: "SPY — enregistrer les variables grav_* transmises au rôle"
   ansible.builtin.copy:
     dest: "{{ lookup('ansible.builtin.env', 'GSO_SPY_OUTPUT') }}/{{ inventory_hostname }}.json"
@@ -13,6 +22,7 @@
          | items2dict | to_nice_json }}
     mode: "0600"
   delegate_to: localhost
+  become: false
 
 - name: "SPY — journaliser l'invocation (compte des appels)"
   ansible.builtin.lineinfile:
@@ -21,3 +31,4 @@
     create: true
     mode: "0600"
   delegate_to: localhost
+  become: false
