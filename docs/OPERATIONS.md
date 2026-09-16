@@ -130,14 +130,57 @@ Ordre (contrat §14.2) :
 2. résolution de l'inventaire imposé ;
 3. validation de la cible unique ;
 4. cohérence structurelle inventaire ↔ registre ↔ vault, **sans afficher de
-   valeur** ;
-5. *(lots ultérieurs)* validation des valeurs non secrètes, connexion à la VM,
-   invocation du rôle.
+   valeur**.
 
 Le préflight est **strictement en lecture seule** : il ne déploie rien,
 n'ouvre aucun vault chiffré, ne contacte aucune machine, ne modifie aucun
 fichier. Il **échoue fermé** : toute ambiguïté ou incohérence → code ≠ 0,
 avant toute opération mutante (GSO-REQ-026, 038, 094, 095, 107).
+
+**Précision (audit privilèges 2026-09) :** contrairement à une note
+antérieure de ce document, une connexion à la VM ne sera **jamais** ajoutée
+à `scripts/preflight.sh` / `gso_validate.py` — GSO-T12 (« Aucune connexion
+distante après refus du préflight ») interdit explicitement toute primitive
+`ssh`/`ansible-playbook`/rôle dans le sélecteur et le préflight
+(GSO-REQ-095, 107), précisément pour garantir un refus instantané, sans
+réseau, sur une configuration incohérente. La vérification de `become` sur
+la cible (voir « Prérequis de la cible » ci-dessous) a délibérément été
+placée ailleurs — dans `sepp67.grav_site` lui-même — pas ici.
+
+### Prérequis de la cible (compte technique)
+
+Chaque VM cible est provisionnée par Cloud-init (Proxmox), qui crée un
+compte de connexion, sa clé publique SSH et ses droits `sudo` — jamais ce
+dépôt ni `sepp67.grav_site`. Le nom du compte est arbitraire (`ansible_user`
+dans l'inventaire) : aucun chemin, propriétaire ou test ne doit en dépendre.
+
+Contrat attendu pour ce compte (audit privilèges 2026-09, suite au premier
+déploiement réel de `grav-platform-docs`) :
+
+| Besoin | Requis | Détail |
+|---|---|---|
+| Connexion SSH par clé | oui | fourni par Cloud-init |
+| `sudo` | oui | toutes les tâches système/Docker/fichiers de `sepp67.grav_site` en dépendent (`become: true`, voir `playbooks/deploy-site.yml`) |
+| `sudo` NOPASSWD | recommandé | l'automatisation (`scripts/deploy.sh`) est non interactive ; sans NOPASSWD, chaque mutation demanderait un mot de passe |
+| Appartenance au groupe `docker` | **non** | `become: true` suffit pour Docker comme pour le reste ; ne pas ajouter ce compte au groupe `docker` |
+| Écriture directe dans `/opt` hors Ansible | **non** | `/opt` reste `root:root 0755` ; seule une tâche du rôle, sous `become: true`, y écrit |
+| Lecture des secrets déployés | **non** | `secrets/` est `root:<gid conteneur> 0750` ; le compte n'a pas besoin d'y accéder directement |
+
+Aucun export manuel (`ANSIBLE_BECOME=true` ou autre) n'est nécessaire :
+`become: true` est porté explicitement par `deploy-site.yml`,
+`restart-site.yml` et `stop-site.yml` (voir `docs/CONTRAT-ARCHITECTURAL.md`
+§14.4). Si `sudo` est indisponible ou interactif sur la cible, l'échec est
+diagnostiqué tôt et clairement par `sepp67.grav_site`
+(`tasks/privilege_guard.yml`), avant toute tâche privilégiée — jamais par un
+`Permission denied`/`Operation not permitted` OS brut plus loin dans
+l'exécution.
+
+**Retirer un compte du groupe `docker` après correction** (si un
+déploiement antérieur à cet audit l'y avait ajouté par contournement) :
+`sudo gpasswd -d <compte> docker` sur la VM cible, puis fermer/rouvrir la
+session SSH de ce compte (l'appartenance aux groupes est lue à la
+connexion). Aucun impact sur un déploiement déjà en place : le rôle n'a
+jamais dépendu de ce groupe.
 
 ## Action (lots L4–L6)
 

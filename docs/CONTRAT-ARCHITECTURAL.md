@@ -1390,6 +1390,51 @@ Les privilèges doivent être limités au play qui les nécessite. Les validatio
 
 **GSO-REQ-097 — Privilèges minimaux.** Une tâche locale de préflight NE DOIT PAS s'exécuter avec des privilèges élevés.
 
+**Précision (audit privilèges 2026-09, suite au premier déploiement réel de
+`grav-platform-docs`) :** GSO-REQ-097 vise strictement les tâches
+*locales*, déléguées au contrôleur (`delegate_to: localhost` dans
+`playbooks/_shared/mutate.yml` — validation registre/vault/secrets). Il ne
+s'applique **pas** à l'invocation distante de `sepp67.grav_site` : ce rôle
+exige `become: true` au niveau du play qui l'invoque depuis sa toute
+première version (voir son README « Prérequis ») et n'escalade jamais ses
+propres privilèges en interne. `deploy-site.yml`, `restart-site.yml` et
+`stop-site.yml` passent donc `become: true` au niveau du play — la seule
+tâche locale (`_shared/mutate.yml`, préflight structurel délégué) reste
+explicitement `become: false`, conformément à GSO-REQ-097. Avant l'audit,
+ces trois playbooks portaient `become: false` au niveau du play entier, sur
+la foi d'un commentaire non vérifié affirmant que « le rôle escalade au
+besoin » — faux : cette confusion entre le périmètre de GSO-REQ-097 (le
+préflight local) et l'invocation distante du rôle est la cause racine des
+échecs du premier déploiement réel (facts absents, accès Docker refusé,
+`/opt/<site>` non créable, `chown` des secrets refusé).
+
+Le compte technique utilisé pour la connexion SSH (fourni par Cloud-init
+sur chaque VM, nom variable — voir inventaire) n'a besoin d'aucune
+appartenance à un groupe particulier, notamment **pas** le groupe `docker` :
+`sudo` (idéalement NOPASSWD, pour l'automatisation non interactive) suffit,
+aussi bien pour les tâches système du rôle que pour les commandes Docker.
+
+Un contrôle distant explicite (identité SSH puis `become: true` effectif,
+avant toute tâche privilégiée) a été envisagé *dans `_shared/mutate.yml`*
+et délibérément écarté : toute tâche de ce fichier qui contacterait
+réellement la cible romprait l'isolation dont dépendent GSO-T13/GSO-T14
+(chemin opérateur réel avec une DOUBLURE de `sepp67.grav_site`, jamais de
+connexion — GSO-REQ-087) et, pour GSO-T19/GSO-T20, empêcherait de
+distinguer un échec de privilège d'une cible réellement `UNREACHABLE`.
+Ce diagnostic actionnable est donc fourni par le rôle lui-même
+(`tasks/privilege_guard.yml`, importé tôt dans `sepp67.grav_site`, juste
+après la validation des variables) — lui correctement remplacé par la
+doublure dans ces mêmes tests, puisqu'il fait partie du rôle substitué.
+
+`playbooks/_shared/observe.yml` (partagé par `check-site.yml` et
+`check-all.yml`, STRICTEMENT non mutants — GSO-REQ-090) reste `become:
+false` au niveau du play : seule sa tâche `docker inspect` (lecture seule)
+porte un `become: true` local, justifié par la même absence
+d'appartenance au groupe `docker` — les autres lectures de cette séquence
+(`.deployed_state.yml`, mode `0644` ; `stat` de `.last_failure.log`, qui ne
+nécessite qu'un droit de traversée de répertoire, jamais la lecture de son
+contenu `0600`) n'en ont jamais eu besoin.
+
 ### 14.5 Protection du vault
 
 Le `.gitignore` doit couvrir le vault réel, ses sauvegardes temporaires et les fichiers d'édition susceptibles de contenir du texte déchiffré. Les permissions locales attendues doivent être documentées.

@@ -60,6 +60,10 @@ route de construction est décrite hors dépôt dans le préflight
 - `python3` avec `PyYAML`
 - accès réseau à GitHub pour installer la dépendance de rôle
 
+Prérequis côté VM cible (compte technique, `sudo`, groupe `docker` — non
+requis) : voir [`docs/OPERATIONS.md`](docs/OPERATIONS.md) « Prérequis de la
+cible ».
+
 ## Commandes disponibles à ce stade
 
 Toutes les commandes ci-dessous sont couvertes par un test (`make test`).
