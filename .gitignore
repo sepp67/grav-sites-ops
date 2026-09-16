@@ -52,3 +52,10 @@ drift-report-*.json
 *~
 .idea/
 .vscode/
+
+# --- Notes de continuite locales, hors perimetre du depot suivi ---
+# Distinct de docs/ (documentation normative, suivie). Jamais publie, jamais
+# revu par la CI, jamais une source de verite du contrat ou de la matrice.
+CLAUDE.md
+
+doc/

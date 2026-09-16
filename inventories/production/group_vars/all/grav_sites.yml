@@ -1,0 +1,18 @@
+---
+grav_sites:
+
+  grav-platform-docs:
+    project_name: grav-platform-docs
+    image: ghcr.io/sepp67/grav-platform-docs
+    version: "1.0.1"
+    digest: "sha256:d6075e591c2d0a67b1e2025cb260e70c184d9cc71efd4d83e65ccb63976c197c"
+    container_name: grav-platform-docs
+    base_directory: /opt/grav-platform-docs
+    bind_address: 192.168.1.39
+    http_port: 8080
+    state: started
+    force_pull: false
+    manage_docker: false
+    site_check_path: /
+    extra_environment: {}
+
